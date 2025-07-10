@@ -9,79 +9,28 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/Amit-R328/stock-exchange/internal/models"
 )
-
-type Stock struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	CurrentPrice float64 `json:"currentPrice"`
-	Amount       int     `json:"amount"`
-}
-
-type Trader struct {
-	ID           string         `json:"id"`
-	Name         string         `json:"name"`
-	Money        float64        `json:"money"`
-	InitialMoney float64        `json:"initialMoney"` // Store initial money for profit/loss calculation
-	Holdings     map[string]int `json:"holdings"`
-}
-
-type OrderType string
-type OrderStatus string
-
-const (
-	Buy  OrderType = "buy"
-	Sell OrderType = "sell"
-
-	Open      OrderStatus = "open"
-	Filled    OrderStatus = "filled"
-	Cancelled OrderStatus = "cancelled"
-)
-
-type Order struct {
-	ID        string      `json:"id"`
-	TraderID  string      `json:"traderId"`
-	StockID   string      `json:"stockId"`
-	Type      OrderType   `json:"type"`
-	Price     float64     `json:"price"`
-	Quantity  int         `json:"quantity"`
-	Status    OrderStatus `json:"status"`
-	CreatedAt time.Time   `json:"createdAt"`
-}
-
-type Transaction struct {
-	ID         string    `json:"id"`
-	BuyerID    string    `json:"buyerId"`
-	SellerID   string    `json:"sellerId"`
-	StockID    string    `json:"stockId"`
-	Price      float64   `json:"price"`
-	Quantity   int       `json:"quantity"`
-	ExecutedAt time.Time `json:"executedAt"`
-}
-
-type Config struct {
-	Shares  []Stock  `json:"shares"`
-	Traders []Trader `json:"traders"`
-}
 
 type Exchange struct {
-	Stocks       map[string]*Stock
-	Traders      map[string]*Trader
-	BuyOrders    map[string][]*Order
-	SellOrders   map[string][]*Order
-	Transactions []Transaction
-	mu           sync.RWMutex // Add mutex for thread safety
+	Stocks       map[string]*models.Stock
+	Traders      map[string]*models.Trader
+	BuyOrders    map[string][]*models.Order
+	SellOrders   map[string][]*models.Order
+	Transactions []models.Transaction
+	mu           sync.RWMutex
 }
 
 var exchange *Exchange
 
 func main() {
 	exchange = &Exchange{
-		Stocks:       make(map[string]*Stock),
-		Traders:      make(map[string]*Trader),
-		BuyOrders:    make(map[string][]*Order),
-		SellOrders:   make(map[string][]*Order),
-		Transactions: make([]Transaction, 0),
+		Stocks:       make(map[string]*models.Stock),
+		Traders:      make(map[string]*models.Trader),
+		BuyOrders:    make(map[string][]*models.Order),
+		SellOrders:   make(map[string][]*models.Order),
+		Transactions: make([]models.Transaction, 0),
 	}
 
 	if err := loadConfig("../../config.json"); err != nil {
@@ -120,7 +69,7 @@ func loadConfig(filename string) error {
 	}
 	defer file.Close()
 
-	var config Config
+	var config models.Config
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(&config); err != nil {
 		return err
@@ -129,17 +78,17 @@ func loadConfig(filename string) error {
 	for _, stock := range config.Shares {
 		s := stock
 		exchange.Stocks[s.ID] = &s
-		exchange.BuyOrders[s.ID] = make([]*Order, 0)
-		exchange.SellOrders[s.ID] = make([]*Order, 0)
+		exchange.BuyOrders[s.ID] = make([]*models.Order, 0)
+		exchange.SellOrders[s.ID] = make([]*models.Order, 0)
 
-		initialOrder := &Order{
+		initialOrder := &models.Order{
 			ID:        fmt.Sprintf("init-%s", s.ID),
 			TraderID:  "exchange",
 			StockID:   s.ID,
-			Type:      Sell,
+			Type:      models.Sell,
 			Price:     s.CurrentPrice,
 			Quantity:  s.Amount,
-			Status:    Open,
+			Status:    models.Open,
 			CreatedAt: time.Now(),
 		}
 		exchange.SellOrders[s.ID] = append(exchange.SellOrders[s.ID], initialOrder)
@@ -181,7 +130,7 @@ func handleGetStocks(w http.ResponseWriter, r *http.Request) {
 	exchange.mu.RLock()
 	defer exchange.mu.RUnlock()
 
-	stocks := make([]Stock, 0, len(exchange.Stocks))
+	stocks := make([]models.Stock, 0, len(exchange.Stocks))
 	for _, stock := range exchange.Stocks {
 		stocks = append(stocks, *stock)
 	}
@@ -207,14 +156,14 @@ func handleGetStock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get open orders for this stock
-	openOrders := make([]Order, 0)
+	openOrders := make([]models.Order, 0)
 	for _, order := range exchange.BuyOrders[stockID] {
-		if order.Status == Open {
+		if order.Status == models.Open {
 			openOrders = append(openOrders, *order)
 		}
 	}
 	for _, order := range exchange.SellOrders[stockID] {
-		if order.Status == Open {
+		if order.Status == models.Open {
 			openOrders = append(openOrders, *order)
 		}
 	}
@@ -264,17 +213,17 @@ func handleGetTrader(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get open orders
-	openOrders := make([]Order, 0)
+	openOrders := make([]models.Order, 0)
 	for _, orders := range exchange.BuyOrders {
 		for _, order := range orders {
-			if order.TraderID == traderID && order.Status == Open {
+			if order.TraderID == traderID && order.Status == models.Open {
 				openOrders = append(openOrders, *order)
 			}
 		}
 	}
 	for _, orders := range exchange.SellOrders {
 		for _, order := range orders {
-			if order.TraderID == traderID && order.Status == Open {
+			if order.TraderID == traderID && order.Status == models.Open {
 				openOrders = append(openOrders, *order)
 			}
 		}
@@ -304,7 +253,7 @@ func handleGetTraderTransactions(w http.ResponseWriter, r *http.Request, traderI
 	}
 
 	// Get last 8 transactions
-	transactions := make([]Transaction, 0)
+	transactions := make([]models.Transaction, 0)
 	count := 0
 	for i := len(exchange.Transactions) - 1; i >= 0 && count < 8; i-- {
 		tx := exchange.Transactions[i]
@@ -354,8 +303,8 @@ func handleCancelOrder(w http.ResponseWriter, r *http.Request) {
 	found := false
 	for stockID, orders := range exchange.BuyOrders {
 		for i, order := range orders {
-			if order.ID == orderID && order.Status == Open {
-				order.Status = Cancelled
+			if order.ID == orderID && order.Status == models.Open {
+				order.Status = models.Cancelled
 				// Remove from active orders
 				exchange.BuyOrders[stockID] = append(orders[:i], orders[i+1:]...)
 				found = true
@@ -367,8 +316,8 @@ func handleCancelOrder(w http.ResponseWriter, r *http.Request) {
 	if !found {
 		for stockID, orders := range exchange.SellOrders {
 			for i, order := range orders {
-				if order.ID == orderID && order.Status == Open {
-					order.Status = Cancelled
+				if order.ID == orderID && order.Status == models.Open {
+					order.Status = models.Cancelled
 					exchange.SellOrders[stockID] = append(orders[:i], orders[i+1:]...)
 					found = true
 					break
@@ -402,11 +351,11 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var orderReq struct {
-		TraderID string    `json:"traderId"`
-		StockID  string    `json:"stockId"`
-		Type     OrderType `json:"type"`
-		Price    float64   `json:"price"`
-		Quantity int       `json:"quantity"`
+		TraderID string           `json:"traderId"`
+		StockID  string           `json:"stockId"`
+		Type     models.OrderType `json:"type"`
+		Price    float64          `json:"price"`
+		Quantity int              `json:"quantity"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&orderReq); err != nil {
@@ -431,7 +380,7 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate funds/holdings
-	if orderReq.Type == Buy {
+	if orderReq.Type == models.Buy {
 		if trader.Money < orderReq.Price*float64(orderReq.Quantity) {
 			http.Error(w, "Insufficient funds", http.StatusBadRequest)
 			return
@@ -444,19 +393,19 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create order
-	order := &Order{
+	order := &models.Order{
 		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
 		TraderID:  orderReq.TraderID,
 		StockID:   orderReq.StockID,
 		Type:      orderReq.Type,
 		Price:     orderReq.Price,
 		Quantity:  orderReq.Quantity,
-		Status:    Open,
+		Status:    models.Open,
 		CreatedAt: time.Now(),
 	}
 
 	// Add to order book
-	if order.Type == Buy {
+	if order.Type == models.Buy {
 		exchange.BuyOrders[order.StockID] = append(exchange.BuyOrders[order.StockID], order)
 	} else {
 		exchange.SellOrders[order.StockID] = append(exchange.SellOrders[order.StockID], order)
@@ -470,16 +419,16 @@ func handleOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 // Check for conflicting orders
-func hasConflictingOrder(traderID, stockID string, orderType OrderType) bool {
-	if orderType == Buy {
+func hasConflictingOrder(traderID, stockID string, orderType models.OrderType) bool {
+	if orderType == models.Buy {
 		for _, order := range exchange.SellOrders[stockID] {
-			if order.TraderID == traderID && order.Status == Open {
+			if order.TraderID == traderID && order.Status == models.Open {
 				return true
 			}
 		}
 	} else {
 		for _, order := range exchange.BuyOrders[stockID] {
-			if order.TraderID == traderID && order.Status == Open {
+			if order.TraderID == traderID && order.Status == models.Open {
 				return true
 			}
 		}
@@ -488,8 +437,8 @@ func hasConflictingOrder(traderID, stockID string, orderType OrderType) bool {
 }
 
 // Get last N transactions for a stock
-func getLastTransactions(stockID string, limit int) []Transaction {
-	transactions := make([]Transaction, 0)
+func getLastTransactions(stockID string, limit int) []models.Transaction {
+	transactions := make([]models.Transaction, 0)
 	count := 0
 	for i := len(exchange.Transactions) - 1; i >= 0 && count < limit; i-- {
 		if exchange.Transactions[i].StockID == stockID {
@@ -525,11 +474,11 @@ func matchOrders(stockID string) {
 	sellOrders := exchange.SellOrders[stockID]
 
 	for _, buyOrder := range buyOrders {
-		if buyOrder.Status != Open {
+		if buyOrder.Status != models.Open {
 			continue
 		}
 		for _, sellOrder := range sellOrders {
-			if sellOrder.Status != Open {
+			if sellOrder.Status != models.Open {
 				continue
 			}
 			if buyOrder.Quantity > 0 && sellOrder.Quantity > 0 &&
@@ -547,33 +496,33 @@ func matchOrders(stockID string) {
 
 func cleanupOrders(stockID string) {
 	// Remove filled buy orders
-	activeBuyOrders := make([]*Order, 0)
+	activeBuyOrders := make([]*models.Order, 0)
 	for _, order := range exchange.BuyOrders[stockID] {
-		if order.Status == Open {
+		if order.Status == models.Open {
 			activeBuyOrders = append(activeBuyOrders, order)
 		}
 	}
 	exchange.BuyOrders[stockID] = activeBuyOrders
 
 	// Remove filled sell orders
-	activeSellOrders := make([]*Order, 0)
+	activeSellOrders := make([]*models.Order, 0)
 	for _, order := range exchange.SellOrders[stockID] {
-		if order.Status == Open {
+		if order.Status == models.Open {
 			activeSellOrders = append(activeSellOrders, order)
 		}
 	}
 	exchange.SellOrders[stockID] = activeSellOrders
 }
 
-func executeTransaction(buyOrder, sellOrder *Order, quantity int, price float64) {
+func executeTransaction(buyOrder, sellOrder *models.Order, quantity int, price float64) {
 	buyOrder.Quantity -= quantity
 	sellOrder.Quantity -= quantity
 
 	if buyOrder.Quantity == 0 {
-		buyOrder.Status = Filled
+		buyOrder.Status = models.Filled
 	}
 	if sellOrder.Quantity == 0 {
-		sellOrder.Status = Filled
+		sellOrder.Status = models.Filled
 	}
 
 	// Update trader balances and holdings
@@ -590,7 +539,7 @@ func executeTransaction(buyOrder, sellOrder *Order, quantity int, price float64)
 	}
 
 	// Create transaction record
-	tx := Transaction{
+	tx := models.Transaction{
 		ID:         fmt.Sprintf("tx-%d", time.Now().UnixNano()),
 		BuyerID:    buyOrder.TraderID,
 		SellerID:   sellOrder.TraderID,
