@@ -11,11 +11,6 @@ import (
 	"github.com/Amit-R328/stock-exchange/internal/models"
 )
 
-type Update struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
-}
-
 type Subscription struct {
 	ch   chan Update
 	done chan struct{}
@@ -450,9 +445,17 @@ func (e *Exchange) CancelOrder(orderID string) error {
 	return fmt.Errorf("order not found or already closed")
 }
 
-// WebSocket subscription methods
+// WebSocket support
+type Update struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
+}
+
 func (e *Exchange) Subscribe() *Subscription {
-	sub := NewSubscription()
+	sub := &Subscription{
+		ch:   make(chan Update, 100),
+		done: make(chan struct{}),
+	}
 
 	e.mu.Lock()
 	if e.subscriptions == nil {

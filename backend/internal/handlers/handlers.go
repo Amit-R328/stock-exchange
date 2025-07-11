@@ -8,15 +8,23 @@ import (
 
 	"github.com/Amit-R328/stock-exchange/internal/models"
 	"github.com/Amit-R328/stock-exchange/internal/services"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 type Handlers struct {
 	exchange *services.Exchange
+	upgrader websocket.Upgrader
 }
 
 func NewHandlers(exchange *services.Exchange) *Handlers {
 	return &Handlers{
 		exchange: exchange,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true // Allow all origins for development
+			},
+		},
 	}
 }
 
@@ -208,4 +216,23 @@ func (h *Handlers) GetTraderTransactions(w http.ResponseWriter, r *http.Request,
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+// HandleWebSocket handles WebSocket connections for real-time updates
+func (h *Handlers) HandleWebSocket(c *gin.Context) {
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	// Subscribe to updates
+	subscription := h.exchange.Subscribe()
+	defer h.exchange.Unsubscribe(subscription)
+
+	for update := range subscription.GetChannel() {
+		if err := conn.WriteJSON(update); err != nil {
+			break
+		}
+	}
 }
