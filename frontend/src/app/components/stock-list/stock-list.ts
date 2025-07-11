@@ -1,10 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ApiService } from '../../services/api.service';
+import { interval, Subscription } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
+import { Stock } from '../../models/index';
 
 @Component({
   selector: 'app-stock-list',
