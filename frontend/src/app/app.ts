@@ -1,12 +1,25 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core'
+import { CommonModule } from '@angular/common'
+import { RouterOutlet } from '@angular/router'
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
-  templateUrl: './app.html',
-  styleUrl: './app.scss'
+  standalone: true,
+  imports: [CommonModule, RouterOutlet],
+  template: `
+    <div class="app-container">
+      <h1>Stock Exchange</h1>
+      <router-outlet></router-outlet>
+    </div>
+  `,
+  styles: [
+    `
+      .app-container {
+        padding: 20px;
+      }
+    `
+  ]
 })
-export class App {
-  protected title = 'frontend';
+export class AppComponent {
+  title = 'stock-exchange-frontend'
 }
