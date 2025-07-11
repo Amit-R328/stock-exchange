@@ -11,13 +11,40 @@ import (
 	"github.com/Amit-R328/stock-exchange/internal/models"
 )
 
+type Update struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
+}
+
+type Subscription struct {
+	ch   chan Update
+	done chan struct{}
+}
+
+func NewSubscription() *Subscription {
+	return &Subscription{
+		ch:   make(chan Update, 100),
+		done: make(chan struct{}),
+	}
+}
+
+func (s *Subscription) GetChannel() chan Update {
+	return s.ch
+}
+
+func (s *Subscription) Close() {
+	close(s.done)
+	close(s.ch)
+}
+
 type Exchange struct {
-	Stocks       map[string]*models.Stock
-	Traders      map[string]*models.Trader
-	BuyOrders    map[string][]*models.Order
-	SellOrders   map[string][]*models.Order
-	Transactions []models.Transaction
-	mu           sync.RWMutex
+	Stocks        map[string]*models.Stock
+	Traders       map[string]*models.Trader
+	BuyOrders     map[string][]*models.Order
+	SellOrders    map[string][]*models.Order
+	Transactions  []models.Transaction
+	subscriptions map[*Subscription]bool
+	mu            sync.RWMutex
 }
 
 func NewExchange() *Exchange {
@@ -421,6 +448,50 @@ func (e *Exchange) CancelOrder(orderID string) error {
 	}
 
 	return fmt.Errorf("order not found or already closed")
+}
+
+// WebSocket subscription methods
+func (e *Exchange) Subscribe() *Subscription {
+	sub := NewSubscription()
+
+	e.mu.Lock()
+	if e.subscriptions == nil {
+		e.subscriptions = make(map[*Subscription]bool)
+	}
+	e.subscriptions[sub] = true
+	e.mu.Unlock()
+
+	// Send periodic updates
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-sub.done:
+				return
+			case <-ticker.C:
+				select {
+				case sub.ch <- Update{Type: "stocks", Data: e.GetAllStocks()}:
+				case <-sub.done:
+					return
+				default:
+					// Channel full, skip update
+				}
+			}
+		}
+	}()
+
+	return sub
+}
+
+func (e *Exchange) Unsubscribe(sub *Subscription) {
+	e.mu.Lock()
+	if _, exists := e.subscriptions[sub]; exists {
+		delete(e.subscriptions, sub)
+		sub.Close()
+	}
+	e.mu.Unlock()
 }
 
 // Helper functions

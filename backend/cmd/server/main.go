@@ -1,21 +1,18 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/Amit-R328/stock-exchange/internal/models"
+	"github.com/Amit-R328/stock-exchange/internal/handlers"
+	"github.com/Amit-R328/stock-exchange/internal/middleware"
 	"github.com/Amit-R328/stock-exchange/internal/services"
 )
 
-var exchange *services.Exchange
-
 func main() {
-	// Initialize exchange using the service
-	exchange = services.NewExchange()
+	// Initialize exchange
+	exchange := services.NewExchange()
 
 	// Load configuration
 	if err := exchange.LoadConfig("config.json"); err != nil {
@@ -25,214 +22,45 @@ func main() {
 	// Start price updater
 	priceUpdater := services.NewPriceUpdater(exchange, 10*time.Second)
 	priceUpdater.Start()
+	defer priceUpdater.Stop()
 
-	// Setup routes
-	setupRoutes()
+	// Initialize handlers
+	h := handlers.NewHandlers(exchange)
 
-	log.Println("Server starting on :8080")
-	log.Println("Available endpoints:")
-	log.Println("- GET    /api/v1/stocks")
-	log.Println("- GET    /api/v1/stocks/{id}")
-	log.Println("- POST   /api/v1/orders")
-	log.Println("- DELETE /api/v1/orders/{id}")
-	log.Println("- GET    /api/v1/traders")
-	log.Println("- GET    /api/v1/traders/{id}")
-	log.Println("- GET    /api/v1/traders/{id}/transactions")
+	// Setup routes with middleware
+	setupRoutes(h)
+
+	log.Println("🚀 Stock Exchange Server starting on :8080")
+	log.Println("📊 Available endpoints:")
+	log.Println("   GET    /api/v1/stocks")
+	log.Println("   GET    /api/v1/stocks/{id}")
+	log.Println("   POST   /api/v1/orders")
+	log.Println("   DELETE /api/v1/orders/{id}")
+	log.Println("   GET    /api/v1/traders")
+	log.Println("   GET    /api/v1/traders/{id}")
+	log.Println("   GET    /api/v1/traders/{id}/transactions")
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
+		log.Fatal("Server failed to start:", err)
 	}
 }
 
-func setupRoutes() {
-	http.HandleFunc("/api/v1/stocks", handleGetStocks)
-	http.HandleFunc("/api/v1/stocks/", handleGetStock)
-	http.HandleFunc("/api/v1/orders", handleOrders)
-	http.HandleFunc("/api/v1/orders/", handleCancelOrder)
-	http.HandleFunc("/api/v1/traders", handleGetTraders)
-	http.HandleFunc("/api/v1/traders/", handleGetTrader)
-}
+func setupRoutes(h *handlers.Handlers) {
+	// Stock endpoints
+	http.HandleFunc("/api/v1/stocks", middleware.CORS(h.GetAllStocks))
+	http.HandleFunc("/api/v1/stocks/", middleware.CORS(h.GetStock))
 
-func handleGetStocks(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// Order endpoints
+	http.HandleFunc("/api/v1/orders", middleware.CORS(h.PlaceOrder))
+	http.HandleFunc("/api/v1/orders/", middleware.CORS(h.CancelOrder))
 
-	stocks := exchange.GetAllStocks()
-	json.NewEncoder(w).Encode(stocks)
-}
+	// Trader endpoints
+	http.HandleFunc("/api/v1/traders", middleware.CORS(h.GetAllTraders))
+	http.HandleFunc("/api/v1/traders/", middleware.CORS(h.GetTrader))
 
-func handleGetStock(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	stockID := r.URL.Path[len("/api/v1/stocks/"):]
-
-	stock, exists := exchange.GetStock(stockID)
-	if !exists {
-		http.Error(w, "Stock not found", http.StatusNotFound)
-		return
-	}
-
-	openOrders := exchange.GetOpenOrders(stockID)
-	transactions := exchange.GetLastTransactions(stockID, 10)
-
-	response := map[string]interface{}{
-		"id":               stock.ID,
-		"name":             stock.Name,
-		"currentPrice":     stock.CurrentPrice,
-		"amount":           stock.Amount,
-		"openOrders":       openOrders,
-		"lastTransactions": transactions,
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func handleOrders(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
-		return
-	}
-
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var orderReq struct {
-		TraderID string           `json:"traderId"`
-		StockID  string           `json:"stockId"`
-		Type     models.OrderType `json:"type"`
-		Price    float64          `json:"price"`
-		Quantity int              `json:"quantity"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&orderReq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Create order
-	order := &models.Order{
-		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
-		TraderID:  orderReq.TraderID,
-		StockID:   orderReq.StockID,
-		Type:      orderReq.Type,
-		Price:     orderReq.Price,
-		Quantity:  orderReq.Quantity,
-		Status:    models.Open,
-		CreatedAt: time.Now(),
-	}
-
-	// Use exchange service to place order
-	if err := exchange.PlaceOrder(order); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(order)
-}
-
-func handleCancelOrder(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
-
-	if r.Method == "OPTIONS" {
-		return
-	}
-
-	if r.Method != "DELETE" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	orderID := r.URL.Path[len("/api/v1/orders/"):]
-
-	if err := exchange.CancelOrder(orderID); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Order cancelled"})
-}
-
-func handleGetTraders(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	type TraderInfo struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	}
-
-	traders := exchange.GetAllTraders()
-	traderInfos := make([]TraderInfo, 0, len(traders))
-
-	for _, trader := range traders {
-		traderInfos = append(traderInfos, TraderInfo{
-			ID:   trader.ID,
-			Name: trader.Name,
-		})
-	}
-
-	json.NewEncoder(w).Encode(traderInfos)
-}
-
-func handleGetTrader(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	path := r.URL.Path[len("/api/v1/traders/"):]
-
-	// Check if asking for transactions
-	if len(path) > 13 && path[len(path)-13:] == "/transactions" {
-		traderID := path[:len(path)-13]
-		handleGetTraderTransactions(w, r, traderID)
-		return
-	}
-
-	traderID := path
-
-	trader, exists := exchange.GetTrader(traderID)
-	if !exists {
-		http.Error(w, "Trader not found", http.StatusNotFound)
-		return
-	}
-
-	openOrders := exchange.GetTraderOpenOrders(traderID)
-
-	response := map[string]interface{}{
-		"id":           trader.ID,
-		"name":         trader.Name,
-		"money":        trader.Money,
-		"initialMoney": trader.InitialMoney,
-		"holdings":     trader.Holdings,
-		"openOrders":   openOrders,
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-
-func handleGetTraderTransactions(w http.ResponseWriter, r *http.Request, traderID string) {
-	_, exists := exchange.GetTrader(traderID)
-	if !exists {
-		http.Error(w, "Trader not found", http.StatusNotFound)
-		return
-	}
-
-	transactions := exchange.GetTraderTransactions(traderID, 8)
-	profitLoss := exchange.CalculateProfitLoss(traderID)
-
-	response := map[string]interface{}{
-		"transactions": transactions,
-		"profitLoss":   profitLoss,
-	}
-
-	json.NewEncoder(w).Encode(response)
+	// Health check endpoint
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
 }
