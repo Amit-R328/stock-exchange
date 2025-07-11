@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"stock-exchange/models"
 	"sync"
 	"time"
+
+	"github.com/Amit-R328/stock-exchange/internal/models"
 )
 
 type Exchange struct {
