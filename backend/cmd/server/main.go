@@ -166,15 +166,22 @@ func handleGetTraders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	// TODO: Move this to exchange service
 	type TraderInfo struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	}
 
-	traders := make([]TraderInfo, 0)
+	traders := exchange.GetAllTraders()
+	traderInfos := make([]TraderInfo, 0, len(traders))
 
-	json.NewEncoder(w).Encode(traders)
+	for _, trader := range traders {
+		traderInfos = append(traderInfos, TraderInfo{
+			ID:   trader.ID,
+			Name: trader.Name,
+		})
+	}
+
+	json.NewEncoder(w).Encode(traderInfos)
 }
 
 func handleGetTrader(w http.ResponseWriter, r *http.Request) {
@@ -190,11 +197,42 @@ func handleGetTrader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Implement trader details
-	http.Error(w, "Not implemented yet", http.StatusNotImplemented)
+	traderID := path
+
+	trader, exists := exchange.GetTrader(traderID)
+	if !exists {
+		http.Error(w, "Trader not found", http.StatusNotFound)
+		return
+	}
+
+	openOrders := exchange.GetTraderOpenOrders(traderID)
+
+	response := map[string]interface{}{
+		"id":           trader.ID,
+		"name":         trader.Name,
+		"money":        trader.Money,
+		"initialMoney": trader.InitialMoney,
+		"holdings":     trader.Holdings,
+		"openOrders":   openOrders,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 func handleGetTraderTransactions(w http.ResponseWriter, r *http.Request, traderID string) {
-	// TODO: Implement trader transactions
-	http.Error(w, "Not implemented yet", http.StatusNotImplemented)
+	_, exists := exchange.GetTrader(traderID)
+	if !exists {
+		http.Error(w, "Trader not found", http.StatusNotFound)
+		return
+	}
+
+	transactions := exchange.GetTraderTransactions(traderID, 8)
+	profitLoss := exchange.CalculateProfitLoss(traderID)
+
+	response := map[string]interface{}{
+		"transactions": transactions,
+		"profitLoss":   profitLoss,
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
