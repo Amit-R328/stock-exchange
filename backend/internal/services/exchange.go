@@ -51,7 +51,7 @@ func (e *Exchange) LoadConfig(filename string) error {
 
 		// Create initial sell orders from exchange
 		initialOrder := &models.Order{
-			ID:        fmt.Sprintf("init-%s", s.ID),
+			ID:        fmt.Sprintf("init-%s-%d", s.ID, time.Now().Unix()),
 			TraderID:  "exchange",
 			StockID:   s.ID,
 			Type:      models.Sell,
@@ -133,6 +133,98 @@ func (e *Exchange) GetLastTransactions(stockID string, limit int) []models.Trans
 	return transactions
 }
 
+// New method: Get all traders
+func (e *Exchange) GetAllTraders() []models.Trader {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	traders := make([]models.Trader, 0, len(e.Traders))
+	for _, trader := range e.Traders {
+		traders = append(traders, *trader)
+	}
+	return traders
+}
+
+// New method: Get specific trader
+func (e *Exchange) GetTrader(traderID string) (*models.Trader, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	trader, exists := e.Traders[traderID]
+	return trader, exists
+}
+
+// New method: Get trader's open orders
+func (e *Exchange) GetTraderOpenOrders(traderID string) []models.Order {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	orders := make([]models.Order, 0)
+
+	// Check all stocks for this trader's orders
+	for _, buyOrders := range e.BuyOrders {
+		for _, order := range buyOrders {
+			if order.TraderID == traderID && order.Status == models.Open {
+				orders = append(orders, *order)
+			}
+		}
+	}
+
+	for _, sellOrders := range e.SellOrders {
+		for _, order := range sellOrders {
+			if order.TraderID == traderID && order.Status == models.Open {
+				orders = append(orders, *order)
+			}
+		}
+	}
+
+	return orders
+}
+
+// New method: Get trader's transactions
+func (e *Exchange) GetTraderTransactions(traderID string, limit int) []models.Transaction {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	transactions := make([]models.Transaction, 0)
+	count := 0
+
+	// Go through transactions in reverse order (newest first)
+	for i := len(e.Transactions) - 1; i >= 0 && count < limit; i-- {
+		tx := e.Transactions[i]
+		if tx.BuyerID == traderID || tx.SellerID == traderID {
+			transactions = append(transactions, tx)
+			count++
+		}
+	}
+
+	return transactions
+}
+
+// New method: Calculate profit/loss for a trader
+func (e *Exchange) CalculateProfitLoss(traderID string) float64 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	trader, exists := e.Traders[traderID]
+	if !exists {
+		return 0
+	}
+
+	// Current value = cash + portfolio value
+	currentValue := trader.Money
+
+	// Add value of all holdings
+	for stockID, quantity := range trader.Holdings {
+		if stock, exists := e.Stocks[stockID]; exists {
+			currentValue += stock.CurrentPrice * float64(quantity)
+		}
+	}
+
+	// Profit/Loss = current value - initial money
+	return currentValue - trader.InitialMoney
+}
+
 func (e *Exchange) PlaceOrder(order *models.Order) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -172,7 +264,18 @@ func (e *Exchange) validateOrder(order *models.Order) error {
 			return fmt.Errorf("insufficient funds")
 		}
 	} else {
-		if trader.Holdings[order.StockID] < order.Quantity {
+		// Check actual holdings minus pending sell orders
+		holdings := trader.Holdings[order.StockID]
+		pendingSells := 0
+
+		for _, sellOrder := range e.SellOrders[order.StockID] {
+			if sellOrder.TraderID == order.TraderID && sellOrder.Status == models.Open {
+				pendingSells += sellOrder.Quantity
+			}
+		}
+
+		availableShares := holdings - pendingSells
+		if availableShares < order.Quantity {
 			return fmt.Errorf("insufficient holdings")
 		}
 	}

@@ -53,8 +53,6 @@ func setupRoutes() {
 	http.HandleFunc("/api/v1/traders/", handleGetTrader)
 }
 
-// Simplified handlers using the exchange service
-
 func handleGetStocks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -175,8 +173,6 @@ func handleGetTraders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	traders := make([]TraderInfo, 0)
-	// We need to add a method to exchange to get all traders
-	// For now, let's add a TODO comment
 
 	json.NewEncoder(w).Encode(traders)
 }
