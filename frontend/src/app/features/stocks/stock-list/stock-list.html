@@ -1,0 +1,80 @@
+<div class="stock-list-container">
+  <mat-card class="stock-list-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>trending_up</mat-icon>
+        Stock Market
+      </mat-card-title>
+      <mat-card-subtitle>{{ stocks.length }} stocks available • Real-time
+        prices</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      @if (loading) {
+      <div class="loading-container">
+        <mat-spinner></mat-spinner>
+      </div>
+      } @else if (error) {
+      <p class="error-message">
+        <mat-icon>error</mat-icon>
+        {{ error }}
+      </p>
+      } @else {
+      <div class="stocks-grid">
+        <div class="stock-header">
+          <div class="header-cell company-header">Company</div>
+          <div class="header-cell price-header">Price</div>
+          <div class="header-cell change-header">Change</div>
+          <div class="header-cell shares-header">Available</div>
+          <div class="header-cell actions-header">Actions</div>
+        </div>
+        @for (stock of stocks; track stock.id; let i = $index) {
+        <div class="stock-row" [class.even-row]="i % 2 === 1">
+          <div class="stock-cell company-cell">
+            <div class="company-info">
+              <div class="company-icon">
+                <mat-icon>business</mat-icon>
+              </div>
+              <div class="company-details">
+                <h3 class="company-name">{{ stock.name }}</h3>
+                <p class="company-id">ID: {{ stock.id }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="stock-cell price-cell">
+            <div class="price-info">
+              <span class="current-price">${{ stock.currentPrice | number: '1.2-2' }}</span>
+            </div>
+          </div>
+          <div class="stock-cell change-cell">
+            <div class="price-change" [class.positive]="getPriceChange(stock) > 0"
+              [class.negative]="getPriceChange(stock) < 0">
+              <mat-icon>{{
+                    getPriceChange(stock) > 0
+                      ? 'trending_up'
+                      : getPriceChange(stock) < 0
+                      ? 'trending_down'
+                      : 'trending_flat'
+                  }}</mat-icon>
+              <span>{{ getPriceChange(stock) > 0 ? '+' : ''
+                    }}{{ getPriceChange(stock) | number: '1.2-2' }}%</span>
+            </div>
+          </div>
+          <div class="stock-cell shares-cell">
+            <div class="shares-info">
+              <span class="shares-amount">{{ stock.amount | number }}</span>
+              <span class="shares-label">shares</span>
+            </div>
+          </div>
+          <div class="stock-cell actions-cell">
+            <button mat-raised-button color="primary" class="view-details-btn" (click)="viewStock(stock)">
+              <mat-icon>visibility</mat-icon>
+              View Details
+            </button>
+          </div>
+        </div>
+        }
+      </div>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

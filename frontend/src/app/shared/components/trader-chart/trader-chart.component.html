@@ -1,0 +1,40 @@
+<div class="trader-chart-container">
+  <div class="chart-header">
+    <div class="chart-controls">
+      <button class="chart-type-btn" [class.active]="chartType === 'performance'"
+        (click)="updateChartType('performance')">
+        <mat-icon>trending_up</mat-icon>
+        Performance
+      </button>
+      <button class="chart-type-btn" [class.active]="chartType === 'portfolio'" (click)="updateChartType('portfolio')">
+        <mat-icon>pie_chart</mat-icon>
+        Portfolio
+      </button>
+      <button class="chart-type-btn" [class.active]="chartType === 'activity'" (click)="updateChartType('activity')">
+        <mat-icon>bar_chart</mat-icon>
+        Activity
+      </button>
+    </div>
+  </div>
+
+  <div class="chart-wrapper" [style.height.px]="height">
+    <canvas #chartCanvas></canvas>
+  </div>
+
+  <div class="chart-footer">
+    <div class="chart-stats">
+      <div class="stat-item" *ngIf="chartType === 'performance'">
+        <span class="stat-label">Total P&L:</span>
+        <span class="stat-value positive">+$5,247.80</span>
+      </div>
+      <div class="stat-item" *ngIf="chartType === 'portfolio'">
+        <span class="stat-label">Total Value:</span>
+        <span class="stat-value">$100,000</span>
+      </div>
+      <div class="stat-item" *ngIf="chartType === 'activity'">
+        <span class="stat-label">Total Orders:</span>
+        <span class="stat-value">142 this month</span>
+      </div>
+    </div>
+  </div>
+</div>

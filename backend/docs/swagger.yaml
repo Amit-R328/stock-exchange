@@ -1,0 +1,579 @@
+basePath: /api/v1
+definitions:
+  handlers.AlgorithmicTraderResponse:
+    properties:
+      active:
+        type: boolean
+      contrarianSpread:
+        description: Contrarian strategy spread
+        type: number
+      cooldownSeconds:
+        description: Cooldown between orders
+        type: integer
+      id:
+        type: string
+      lastAction:
+        type: string
+      maxOrderValue:
+        description: Configuration parameters
+        type: number
+      minOrderValue:
+        description: Minimum value per order
+        type: number
+      momentumThreshold:
+        description: Momentum strategy threshold
+        type: number
+      name:
+        type: string
+      ordersPlaced:
+        type: integer
+      profitLoss:
+        type: number
+      riskThreshold:
+        description: Risk percentage of portfolio
+        type: number
+      strategy:
+        type: string
+    type: object
+  handlers.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handlers.OrderRequest:
+    properties:
+      price:
+        type: number
+      quantity:
+        type: integer
+      stockId:
+        type: string
+      traderId:
+        type: string
+      type:
+        $ref: '#/definitions/models.OrderType'
+    required:
+    - price
+    - quantity
+    - stockId
+    - traderId
+    - type
+    type: object
+  handlers.StockDetailsResponse:
+    properties:
+      amount:
+        type: integer
+      currentPrice:
+        type: number
+      id:
+        type: string
+      lastTransactions:
+        items:
+          $ref: '#/definitions/models.Transaction'
+        type: array
+      name:
+        type: string
+      openOrders:
+        items:
+          $ref: '#/definitions/models.Order'
+        type: array
+    type: object
+  handlers.StockHistoryResponse:
+    properties:
+      days:
+        type: integer
+      history:
+        items:
+          $ref: '#/definitions/models.PriceQuote'
+        type: array
+      stockId:
+        type: string
+    type: object
+  handlers.SuccessResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  handlers.TraderDetailsResponse:
+    properties:
+      holdings:
+        additionalProperties:
+          type: integer
+        type: object
+      id:
+        type: string
+      initialMoney:
+        type: number
+      money:
+        type: number
+      name:
+        type: string
+      openOrders:
+        items:
+          $ref: '#/definitions/models.Order'
+        type: array
+    type: object
+  handlers.TraderInfo:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  handlers.TraderPerformanceResponse:
+    properties:
+      activity:
+        items:
+          $ref: '#/definitions/models.ActivityLog'
+        type: array
+      days:
+        type: integer
+      performance:
+        items:
+          $ref: '#/definitions/models.PerformanceData'
+        type: array
+      portfolio:
+        $ref: '#/definitions/models.PortfolioData'
+      traderId:
+        type: string
+    type: object
+  handlers.TraderTransactionsResponse:
+    properties:
+      profitLoss:
+        type: number
+      transactions:
+        items:
+          $ref: '#/definitions/models.Transaction'
+        type: array
+    type: object
+  models.ActivityLog:
+    properties:
+      buyOrders:
+        type: integer
+      period:
+        type: string
+      sellOrders:
+        type: integer
+      value:
+        type: number
+      volume:
+        type: integer
+    type: object
+  models.Order:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      price:
+        type: number
+      quantity:
+        type: integer
+      status:
+        $ref: '#/definitions/models.OrderStatus'
+      stockId:
+        type: string
+      traderId:
+        type: string
+      type:
+        $ref: '#/definitions/models.OrderType'
+    type: object
+  models.OrderStatus:
+    enum:
+    - open
+    - filled
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - Open
+    - Filled
+    - Cancelled
+  models.OrderType:
+    enum:
+    - buy
+    - sell
+    type: string
+    x-enum-varnames:
+    - Buy
+    - Sell
+  models.PerformanceData:
+    properties:
+      cashBalance:
+        type: number
+      date:
+        type: string
+      portfolioValue:
+        type: number
+      profitLoss:
+        type: number
+    type: object
+  models.PortfolioData:
+    properties:
+      cashBalance:
+        type: number
+      holdings:
+        items:
+          $ref: '#/definitions/models.PortfolioHolding'
+        type: array
+      totalValue:
+        type: number
+    type: object
+  models.PortfolioHolding:
+    properties:
+      percentage:
+        type: number
+      quantity:
+        type: integer
+      stockId:
+        type: string
+      stockName:
+        type: string
+      value:
+        type: number
+    type: object
+  models.PriceQuote:
+    properties:
+      price:
+        type: number
+      timestamp:
+        type: string
+      volume:
+        type: integer
+    type: object
+  models.Stock:
+    properties:
+      amount:
+        type: integer
+      currentPrice:
+        type: number
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  models.Transaction:
+    properties:
+      buyerId:
+        type: string
+      executedAt:
+        type: string
+      id:
+        type: string
+      price:
+        type: number
+      quantity:
+        type: integer
+      sellerId:
+        type: string
+      stockId:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: A stock exchange simulation API
+  title: Stock Exchange API
+  version: "1.0"
+paths:
+  /algorithms:
+    get:
+      description: Get list of all algorithmic trading bots
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.AlgorithmicTraderResponse'
+            type: array
+      summary: Get all algorithmic traders
+      tags:
+      - algorithms
+  /algorithms/{id}/start:
+    post:
+      description: Start a specific algorithmic trading bot
+      parameters:
+      - description: Algorithm ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Start algorithmic trader
+      tags:
+      - algorithms
+  /algorithms/{id}/status:
+    get:
+      description: Get detailed status of a specific algorithmic trading bot
+      parameters:
+      - description: Algorithm ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AlgorithmicTraderResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Get algorithm status
+      tags:
+      - algorithms
+  /algorithms/{id}/stop:
+    post:
+      description: Stop a specific algorithmic trading bot
+      parameters:
+      - description: Algorithm ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Stop algorithmic trader
+      tags:
+      - algorithms
+  /algorithms/{id}/toggle:
+    post:
+      description: Start or stop an algorithmic trader
+      parameters:
+      - description: Trader ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+      summary: Toggle algorithmic trader
+      tags:
+      - algorithms
+  /algorithms/start:
+    post:
+      description: Start the algorithmic trading system
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+      summary: Start algorithm manager
+      tags:
+      - algorithms
+  /algorithms/stop:
+    post:
+      description: Stop the algorithmic trading system
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+      summary: Stop algorithm manager
+      tags:
+      - algorithms
+  /orders:
+    post:
+      consumes:
+      - application/json
+      description: Place a buy or sell order
+      parameters:
+      - description: Order details
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.OrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Order'
+      summary: Place a new order
+      tags:
+      - trading
+  /orders/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Cancel an existing order by ID
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponse'
+      summary: Cancel an order
+      tags:
+      - orders
+  /stocks:
+    get:
+      description: Get current data for all stocks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Stock'
+            type: array
+      summary: Get all stocks
+      tags:
+      - stocks
+  /stocks/{id}:
+    get:
+      description: Get specific stock data including open orders and last 10 transactions
+      parameters:
+      - description: Stock ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.StockDetailsResponse'
+      summary: Get stock details
+      tags:
+      - stocks
+  /stocks/{id}/history:
+    get:
+      description: Get historical price data for charts
+      parameters:
+      - description: Stock ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Number of days of history (default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.StockHistoryResponse'
+      summary: Get stock price history
+      tags:
+      - stocks
+  /traders:
+    get:
+      description: Get names of all traders
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.TraderInfo'
+            type: array
+      summary: Get all traders
+      tags:
+      - traders
+  /traders/{id}:
+    get:
+      description: Get trader's open orders, holdings and cash
+      parameters:
+      - description: Trader ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TraderDetailsResponse'
+      summary: Get trader details
+      tags:
+      - traders
+  /traders/{id}/performance:
+    get:
+      description: Get trader performance data for charts
+      parameters:
+      - description: Trader ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Number of days of history (default 30)
+        in: query
+        name: days
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TraderPerformanceResponse'
+      summary: Get trader performance history
+      tags:
+      - traders
+  /traders/{id}/transactions:
+    get:
+      description: Get last 8 transactions of a trader
+      parameters:
+      - description: Trader ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.TraderTransactionsResponse'
+      summary: Get trader transactions
+      tags:
+      - traders
+swagger: "2.0"

@@ -1,1 +1,80 @@
 /* You can add global styles to this file, and also import other style files */
+@use './styles/variables' as *;
+
+html,
+body {
+  height: 100%;
+  font-family: $font-primary;
+}
+
+body {
+  margin: 0;
+  background-color: $bg-primary;
+  color: $text-primary;
+}
+
+// Global utility classes
+.text-success {
+  color: $success !important;
+}
+
+.text-danger {
+  color: $danger !important;
+}
+
+.text-warning {
+  color: $warning !important;
+}
+
+.text-info {
+  color: $info !important;
+}
+
+.text-muted {
+  color: $text-muted !important;
+}
+
+.price-up {
+  @include price-color('up');
+}
+
+.price-down {
+  @include price-color('down');
+}
+
+.price-neutral {
+  @include price-color('neutral');
+}
+
+.order-buy-badge {
+  @include order-badge('buy');
+}
+
+.order-sell-badge {
+  @include order-badge('sell');
+}
+
+// Touch-friendly improvements
+@include respond-to(md) {
+
+  // Ensure minimum touch target size
+  button,
+  .mat-button,
+  .mat-raised-button,
+  .mat-fab,
+  .mat-mini-fab {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  // Improve text readability
+  body {
+    font-size: 16px; // Prevents zoom on iOS
+  }
+
+  // Better card spacing
+  .mat-card {
+    margin: 8px 0;
+    border-radius: 8px;
+  }
+}

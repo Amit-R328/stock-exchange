@@ -1,0 +1,169 @@
+@use '../../../styles/variables' as *;
+@use 'sass:color';
+
+.login-container {
+    @include flex-center;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+    
+    // Modern gradient background with stock market theme
+    background: linear-gradient(135deg, 
+        #1e3c72 0%, 
+        #2a5298 25%, 
+        #0f4c75 50%, 
+        #3282b8 75%, 
+        #0f3460 100%
+    );
+    
+    // Animated background pattern - subtle floating orbs
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: 
+            radial-gradient(circle at 20% 50%, rgba(120, 250, 150, 0.08) 0%, rgba(120, 250, 150, 0.03) 30%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(255, 120, 120, 0.08) 0%, rgba(255, 120, 120, 0.03) 30%, transparent 50%),
+            radial-gradient(circle at 40% 80%, rgba(120, 120, 255, 0.08) 0%, rgba(120, 120, 255, 0.03) 30%, transparent 50%),
+            radial-gradient(circle at 60% 30%, rgba(255, 255, 120, 0.06) 0%, rgba(255, 255, 120, 0.02) 25%, transparent 45%);
+        background-size: 400px 400px, 350px 350px, 300px 300px, 250px 250px;
+        animation: float 18s ease-in-out infinite;
+    }
+    
+    // Geometric pattern overlay - subtle and professional
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: 
+            linear-gradient(45deg, transparent 40%, rgba(255, 255, 255, 0.04) 50%, transparent 60%),
+            linear-gradient(-45deg, transparent 40%, rgba(255, 255, 255, 0.04) 50%, transparent 60%),
+            radial-gradient(circle at 70% 70%, rgba(120, 250, 150, 0.04) 0%, transparent 30%),
+            radial-gradient(circle at 30% 30%, rgba(255, 120, 120, 0.04) 0%, transparent 30%);
+        background-size: 80px 80px, 80px 80px, 200px 200px, 200px 200px;
+        animation: slide 30s linear infinite;
+        opacity: 0.5;
+    }
+    
+    .login-card {
+        @include card(12, xl, xl);
+        width: 450px;
+        max-width: 90vw;
+        position: relative;
+        z-index: 2;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.2),
+            0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+        
+        // Add a subtle glow effect
+        &::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                rgba(50, 130, 184, 0.3), 
+                rgba(30, 60, 114, 0.3), 
+                rgba(42, 82, 152, 0.3)
+            );
+            border-radius: inherit;
+            z-index: -1;
+            filter: blur(6px);
+        }
+        
+        @include respond-to(xs) {
+            width: 100%;
+            @include spacing(margin, 4);
+        }
+        
+        // Header styling
+        mat-card-header {
+            text-align: center;
+            @include spacing(margin-bottom, 6);
+            
+            mat-card-title {
+                color: $primary;
+                font-weight: 600;
+                @include font-size(xl);
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            }
+        }
+    }
+}
+
+// Animation keyframes - enhanced for better visibility
+@keyframes float {
+    0% {
+        transform: translateY(0px) translateX(0px) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-20px) translateX(10px) rotate(1deg);
+    }
+    50% {
+        transform: translateY(-40px) translateX(-5px) rotate(-1deg);
+    }
+    75% {
+        transform: translateY(-15px) translateX(-10px) rotate(1deg);
+    }
+    100% {
+        transform: translateY(0px) translateX(0px) rotate(0deg);
+    }
+}
+
+@keyframes slide {
+    0% {
+        transform: translateX(0px) translateY(0px) rotate(0deg);
+    }
+    100% {
+        transform: translateX(-60px) translateY(-60px) rotate(360deg);
+    }
+}
+    
+mat-form-field {
+    width: 100%;
+    @include spacing(margin-bottom, 5);
+    
+    // Enhanced form field styling
+    .mat-mdc-form-field-focus-overlay {
+        background-color: rgba(50, 130, 184, 0.12);
+    }
+}
+
+button {
+    width: 100%;
+    @include hover-transition;
+    background: linear-gradient(45deg, $primary, color.adjust($primary, $lightness: 10%));
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(50, 130, 184, 0.3);
+    
+    &:hover {
+        background: linear-gradient(45deg, color.adjust($primary, $lightness: -5%), $primary);
+        box-shadow: 0 6px 20px rgba(50, 130, 184, 0.4);
+        transform: translateY(-2px);
+    }
+}
+
+mat-error {
+    display: block;
+    @include spacing(margin-bottom, 4);
+    color: $danger;
+    @include font-size(sm);
+    background: rgba(244, 67, 54, 0.1);
+    padding: 8px 12px;
+    border-radius: 4px;
+    border-left: 3px solid $danger;
+}

@@ -1,0 +1,74 @@
+@use '../styles/variables' as *;
+
+.app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+
+    .spacer {
+        flex: 1 1 auto;
+    }
+
+    .content {
+        flex: 1;
+        overflow-y: auto;
+        background-color: #f5f5f5;
+    }
+}
+
+mat-toolbar {
+    @include respond-to(md) {
+        @include spacing(padding, 2);
+        min-height: 56px;
+
+        .toolbar-title {
+            font-size: 18px;
+        }
+    }
+
+    @include respond-to(xs) {
+        @include spacing(padding, 1);
+        min-height: 48px;
+
+        .toolbar-title {
+            font-size: 16px;
+        }
+    }
+
+    button {
+        margin-left: 10px;
+
+        @include respond-to(md) {
+            min-width: 44px;
+            min-height: 44px;
+            margin-left: 8px;
+        }
+
+        @include respond-to(xs) {
+            margin-left: 4px;
+            @include spacing(padding, 1);
+        }
+    }
+}
+
+// Mobile navigation improvements
+@include respond-to(md) {
+    .mat-toolbar-row {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+}
+
+// Better mobile content spacing
+@include respond-to(md) {
+    .app-container .content {
+        padding: 0;
+    }
+}
+
+// Prevent horizontal scroll on mobile
+@include respond-to(md) {
+    .app-container {
+        overflow-x: hidden;
+    }
+}

@@ -1,23 +1,25 @@
 package handlers
 
 import (
-	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
+	"stock-exchange/internal/models"
+	"stock-exchange/internal/services"
+	"strconv"
 	"time"
 
-	"github.com/Amit-R328/stock-exchange/internal/models"
-	"github.com/Amit-R328/stock-exchange/internal/services"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type Handlers struct {
-	exchange *services.Exchange
-	upgrader websocket.Upgrader
+	exchange         *services.Exchange
+	upgrader         websocket.Upgrader
+	algorithmManager *services.AlgorithmManager
 }
 
-func NewHandlers(exchange *services.Exchange) *Handlers {
+func NewHandlers(exchange *services.Exchange, algorithmManager *services.AlgorithmManager) *Handlers {
 	return &Handlers{
 		exchange: exchange,
 		upgrader: websocket.Upgrader{
@@ -25,214 +27,576 @@ func NewHandlers(exchange *services.Exchange) *Handlers {
 				return true // Allow all origins for development
 			},
 		},
+		algorithmManager: algorithmManager,
 	}
 }
 
-// Get all stocks
-func (h *Handlers) GetAllStocks(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
+// GetAllStocks
+// @Summary Get all stocks
+// @Description Get current data for all stocks
+// @Tags stocks
+// @Produce json
+// @Success 200 {array} models.Stock
+// @Router /stocks [get]
+func (h *Handlers) GetAllStocks(c *gin.Context) {
 	stocks := h.exchange.GetAllStocks()
-	json.NewEncoder(w).Encode(stocks)
+	c.JSON(http.StatusOK, stocks)
 }
 
-// Get specific stock with details
-func (h *Handlers) GetStock(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	stockID := r.URL.Path[len("/api/v1/stocks/"):]
+// GetStock
+// @Summary Get stock details
+// @Description Get specific stock data including open orders and last 10 transactions
+// @Tags stocks
+// @Produce json
+// @Param id path string true "Stock ID"
+// @Success 200 {object} StockDetailsResponse
+// @Router /stocks/{id} [get]
+func (h *Handlers) GetStock(c *gin.Context) {
+	stockID := c.Param("id")
 
 	stock, exists := h.exchange.GetStock(stockID)
 	if !exists {
-		http.Error(w, "Stock not found", http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Stock not found"})
 		return
 	}
 
 	openOrders := h.exchange.GetOpenOrders(stockID)
 	transactions := h.exchange.GetLastTransactions(stockID, 10)
 
-	response := map[string]interface{}{
-		"id":               stock.ID,
-		"name":             stock.Name,
-		"currentPrice":     stock.CurrentPrice,
-		"amount":           stock.Amount,
-		"openOrders":       openOrders,
-		"lastTransactions": transactions,
+	response := StockDetailsResponse{
+		Stock:        stock,
+		OpenOrders:   openOrders,
+		Transactions: transactions,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusOK, response)
 }
 
-// Place an order
-func (h *Handlers) PlaceOrder(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	if r.Method == "OPTIONS" {
+// PlaceOrder
+// @Summary Place a new order
+// @Description Place a buy or sell order
+// @Tags trading
+// @Accept json
+// @Produce json
+// @Param order body OrderRequest true "Order details"
+// @Success 201 {object} models.Order
+// @Router /orders [post]
+func (h *Handlers) PlaceOrder(c *gin.Context) {
+	var req OrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// Check if trader has conflicting orders
+	if h.exchange.HasConflictingOrder(req.TraderID, req.StockID, req.Type) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot have both buy and sell orders for the same stock"})
 		return
 	}
 
-	var orderReq struct {
-		TraderID string           `json:"traderId"`
-		StockID  string           `json:"stockId"`
-		Type     models.OrderType `json:"type"`
-		Price    float64          `json:"price"`
-		Quantity int              `json:"quantity"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&orderReq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Create order with unique ID
 	order := &models.Order{
-		ID:        fmt.Sprintf("order-%d", time.Now().UnixNano()),
-		TraderID:  orderReq.TraderID,
-		StockID:   orderReq.StockID,
-		Type:      orderReq.Type,
-		Price:     orderReq.Price,
-		Quantity:  orderReq.Quantity,
+		ID:        uuid.New().String(),
+		TraderID:  req.TraderID,
+		StockID:   req.StockID,
+		Type:      req.Type,
+		Price:     req.Price,
+		Quantity:  req.Quantity,
 		Status:    models.Open,
 		CreatedAt: time.Now(),
 	}
 
 	if err := h.exchange.PlaceOrder(order); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(order)
+	c.JSON(http.StatusCreated, order)
 }
 
-// Cancel an order
-func (h *Handlers) CancelOrder(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
-
-	if r.Method == "OPTIONS" {
-		return
-	}
-
-	if r.Method != "DELETE" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	orderID := r.URL.Path[len("/api/v1/orders/"):]
+// CancelOrder
+// @Summary Cancel an order
+// @Description Cancel an existing order by ID
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID"
+// @Success 200 {object} SuccessResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /orders/{id} [delete]
+func (h *Handlers) CancelOrder(c *gin.Context) {
+	orderID := c.Param("id")
 
 	if err := h.exchange.CancelOrder(orderID); err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Order cancelled successfully"})
+	// Replace gin.H with proper struct
+	c.JSON(http.StatusOK, SuccessResponse{
+		Message: "Order cancelled successfully",
+	})
 }
 
-// Get all traders (names only)
-func (h *Handlers) GetAllTraders(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	type TraderInfo struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-	}
-
+// GetAllTraders
+// @Summary Get all traders
+// @Description Get names of all traders
+// @Tags traders
+// @Produce json
+// @Success 200 {array} TraderInfo
+// @Router /traders [get]
+func (h *Handlers) GetAllTraders(c *gin.Context) {
 	traders := h.exchange.GetAllTraders()
-	traderInfos := make([]TraderInfo, 0, len(traders))
-
-	for _, trader := range traders {
-		traderInfos = append(traderInfos, TraderInfo{
-			ID:   trader.ID,
-			Name: trader.Name,
-		})
-	}
-
-	json.NewEncoder(w).Encode(traderInfos)
+	c.JSON(http.StatusOK, traders)
 }
 
-// Get trader details
-func (h *Handlers) GetTrader(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	path := r.URL.Path[len("/api/v1/traders/"):]
-
-	// Check if asking for transactions
-	if len(path) > 13 && path[len(path)-13:] == "/transactions" {
-		traderID := path[:len(path)-13]
-		h.GetTraderTransactions(w, r, traderID)
-		return
-	}
-
-	traderID := path
+// GetTrader
+// @Summary Get trader details
+// @Description Get trader's open orders, holdings and cash
+// @Tags traders
+// @Produce json
+// @Param id path string true "Trader ID"
+// @Success 200 {object} TraderDetailsResponse
+// @Router /traders/{id} [get]
+func (h *Handlers) GetTrader(c *gin.Context) {
+	traderID := c.Param("id")
 
 	trader, exists := h.exchange.GetTrader(traderID)
 	if !exists {
-		http.Error(w, "Trader not found", http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Trader not found"})
 		return
 	}
 
 	openOrders := h.exchange.GetTraderOpenOrders(traderID)
 
-	response := map[string]interface{}{
-		"id":           trader.ID,
-		"name":         trader.Name,
-		"money":        trader.Money,
-		"initialMoney": trader.InitialMoney,
-		"holdings":     trader.Holdings,
-		"openOrders":   openOrders,
+	// Ensure I never send null for openOrders
+	if openOrders == nil {
+		openOrders = make([]models.Order, 0)
 	}
 
-	json.NewEncoder(w).Encode(response)
+	response := TraderDetailsResponse{
+		Trader:     trader,
+		OpenOrders: openOrders,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
-// Get trader transactions
-func (h *Handlers) GetTraderTransactions(w http.ResponseWriter, r *http.Request, traderID string) {
-	_, exists := h.exchange.GetTrader(traderID)
-	if !exists {
-		http.Error(w, "Trader not found", http.StatusNotFound)
-		return
-	}
+// GetTraderTransactions
+// @Summary Get trader transactions
+// @Description Get last 8 transactions of a trader
+// @Tags traders
+// @Produce json
+// @Param id path string true "Trader ID"
+// @Success 200 {object} TraderTransactionsResponse
+// @Router /traders/{id}/transactions [get]
+func (h *Handlers) GetTraderTransactions(c *gin.Context) {
+	traderID := c.Param("id")
 
 	transactions := h.exchange.GetTraderTransactions(traderID, 8)
 	profitLoss := h.exchange.CalculateProfitLoss(traderID)
 
-	response := map[string]interface{}{
-		"transactions": transactions,
-		"profitLoss":   profitLoss,
+	response := TraderTransactionsResponse{
+		Transactions: transactions,
+		ProfitLoss:   profitLoss,
 	}
 
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusOK, response)
+}
+
+// GetStockHistory
+// @Summary Get stock price history
+// @Description Get historical price data for charts
+// @Tags stocks
+// @Produce json
+// @Param id path string true "Stock ID"
+// @Param days query int false "Number of days of history (default 30)"
+// @Success 200 {object} StockHistoryResponse
+// @Router /stocks/{id}/history [get]
+func (h *Handlers) GetStockHistory(c *gin.Context) {
+	stockID := c.Param("id")
+	days := 30 // Default to 30 days
+
+	if daysParam := c.Query("days"); daysParam != "" {
+		if parsedDays, err := strconv.Atoi(daysParam); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+
+	history := h.exchange.GetStockHistory(stockID, days)
+
+	response := StockHistoryResponse{
+		StockID: stockID,
+		Days:    days,
+		History: history,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetTraderPerformance
+// @Summary Get trader performance history
+// @Description Get trader performance data for charts
+// @Tags traders
+// @Produce json
+// @Param id path string true "Trader ID"
+// @Param days query int false "Number of days of history (default 30)"
+// @Success 200 {object} TraderPerformanceResponse
+// @Router /traders/{id}/performance [get]
+func (h *Handlers) GetTraderPerformance(c *gin.Context) {
+	traderID := c.Param("id")
+	days := 30 // Default to 30 days
+
+	if daysParam := c.Query("days"); daysParam != "" {
+		if parsedDays, err := strconv.Atoi(daysParam); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+
+	performance := h.exchange.GetTraderPerformance(traderID, days)
+	portfolio := h.exchange.GetTraderPortfolio(traderID)
+	activity := h.exchange.GetTraderActivity(traderID, 6) // Last 6 months
+
+	response := TraderPerformanceResponse{
+		TraderID:    traderID,
+		Days:        days,
+		Performance: performance,
+		Portfolio:   portfolio,
+		Activity:    activity,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // HandleWebSocket handles WebSocket connections for real-time updates
 func (h *Handlers) HandleWebSocket(c *gin.Context) {
 	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
+		log.Printf("WebSocket upgrade failed: %v", err)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		log.Println("WebSocket connection closed")
+		conn.Close()
+	}()
+
+	log.Println("New WebSocket connection established")
 
 	// Subscribe to updates
 	subscription := h.exchange.Subscribe()
 	defer h.exchange.Unsubscribe(subscription)
 
-	for update := range subscription.GetChannel() {
-		if err := conn.WriteJSON(update); err != nil {
-			break
+	// Handle incoming messages (ping/pong)
+	go func() {
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				log.Printf("WebSocket read error: %v", err)
+				return
+			}
+		}
+	}()
+
+	// Send updates
+	for {
+		select {
+		case update, ok := <-subscription.GetChannel():
+			if !ok {
+				log.Println("Subscription channel closed")
+				return
+			}
+
+			if err := conn.WriteJSON(update); err != nil {
+				log.Printf("WebSocket write error: %v", err)
+				return
+			}
+			log.Printf("Sent WebSocket update: %s", update.Type)
 		}
 	}
 }
+
+// ToggleAlgorithmicTrader
+// @Summary Toggle algorithmic trader
+// @Description Start or stop an algorithmic trader
+// @Tags algorithms
+// @Param id path string true "Trader ID"
+// @Success 200 {object} SuccessResponse
+// @Router /algorithms/{id}/toggle [post]
+func (h *Handlers) ToggleAlgorithmicTrader(c *gin.Context) {
+	traderID := c.Param("id")
+
+	if h.algorithmManager == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Algorithm manager not available"})
+		return
+	}
+
+	err := h.algorithmManager.ToggleTrader(traderID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, SuccessResponse{Message: "Trader toggled successfully"})
+}
+
+// StartAlgorithmManager
+// @Summary Start algorithm manager
+// @Description Start the algorithmic trading system
+// @Tags algorithms
+// @Success 200 {object} SuccessResponse
+// @Router /algorithms/start [post]
+func (h *Handlers) StartAlgorithmManager(c *gin.Context) {
+	if h.algorithmManager == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Algorithm manager not available"})
+		return
+	}
+
+	h.algorithmManager.Start()
+	c.JSON(http.StatusOK, SuccessResponse{Message: "Algorithm manager started"})
+}
+
+// StopAlgorithmManager
+// @Summary Stop algorithm manager
+// @Description Stop the algorithmic trading system
+// @Tags algorithms
+// @Success 200 {object} SuccessResponse
+// @Router /algorithms/stop [post]
+func (h *Handlers) StopAlgorithmManager(c *gin.Context) {
+	if h.algorithmManager == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Algorithm manager not available"})
+		return
+	}
+
+	h.algorithmManager.Stop()
+	c.JSON(http.StatusOK, SuccessResponse{Message: "Algorithm manager stopped"})
+}
+
+// GetAlgorithms
+// @Summary Get all algorithmic traders
+// @Description Get list of all algorithmic trading bots
+// @Tags algorithms
+// @Produce json
+// @Success 200 {array} AlgorithmicTraderResponse
+// @Router /algorithms [get]
+func (h *Handlers) GetAlgorithms(c *gin.Context) {
+	algorithms := h.algorithmManager.GetAlgoTraders()
+
+	var response []AlgorithmicTraderResponse
+	for _, algo := range algorithms {
+		response = append(response, AlgorithmicTraderResponse{
+			ID:                algo.ID,
+			Name:              algo.Name,
+			Strategy:          algo.Strategy,
+			Active:            algo.Active,
+			OrdersPlaced:      algo.OrdersPlaced,
+			ProfitLoss:        algo.ProfitLoss,
+			LastAction:        algo.LastAction,
+			MaxOrderValue:     algo.Config.MaxOrderValue,
+			MinOrderValue:     algo.Config.MinOrderValue,
+			RiskThreshold:     algo.Config.RiskThreshold,
+			CooldownSeconds:   algo.Config.CooldownSeconds,
+			MomentumThreshold: algo.Config.MomentumThreshold,
+			ContrarianSpread:  algo.Config.ContrarianSpread,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// StartAlgorithm
+// @Summary Start algorithmic trader
+// @Description Start a specific algorithmic trading bot
+// @Tags algorithms
+// @Param id path string true "Algorithm ID"
+// @Success 200 {object} SuccessResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /algorithms/{id}/start [post]
+func (h *Handlers) StartAlgorithm(c *gin.Context) {
+	id := c.Param("id")
+
+	// Get the algorithm first to check if it exists and if it's not already active
+	algorithms := h.algorithmManager.GetAlgoTraders()
+	var targetAlgo *services.AlgoTrader
+	for _, algo := range algorithms {
+		if algo.ID == id {
+			targetAlgo = algo
+			break
+		}
+	}
+
+	if targetAlgo == nil {
+		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Algorithm not found"})
+		return
+	}
+
+	if targetAlgo.Active {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Algorithm is already active"})
+		return
+	}
+
+	err := h.algorithmManager.ToggleTrader(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, SuccessResponse{Message: "Algorithm started successfully"})
+}
+
+// StopAlgorithm
+// @Summary Stop algorithmic trader
+// @Description Stop a specific algorithmic trading bot
+// @Tags algorithms
+// @Param id path string true "Algorithm ID"
+// @Success 200 {object} SuccessResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /algorithms/{id}/stop [post]
+func (h *Handlers) StopAlgorithm(c *gin.Context) {
+	id := c.Param("id")
+
+	// Get the algorithm first to check if it exists and if it's active
+	algorithms := h.algorithmManager.GetAlgoTraders()
+	var targetAlgo *services.AlgoTrader
+	for _, algo := range algorithms {
+		if algo.ID == id {
+			targetAlgo = algo
+			break
+		}
+	}
+
+	if targetAlgo == nil {
+		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Algorithm not found"})
+		return
+	}
+
+	if !targetAlgo.Active {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Algorithm is already inactive"})
+		return
+	}
+
+	err := h.algorithmManager.ToggleTrader(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, SuccessResponse{Message: "Algorithm stopped successfully"})
+}
+
+// GetAlgorithmStatus
+// @Summary Get algorithm status
+// @Description Get detailed status of a specific algorithmic trading bot
+// @Tags algorithms
+// @Param id path string true "Algorithm ID"
+// @Success 200 {object} AlgorithmicTraderResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /algorithms/{id}/status [get]
+func (h *Handlers) GetAlgorithmStatus(c *gin.Context) {
+	id := c.Param("id")
+
+	algorithms := h.algorithmManager.GetAlgoTraders()
+	var targetAlgo *services.AlgoTrader
+	for _, algo := range algorithms {
+		if algo.ID == id {
+			targetAlgo = algo
+			break
+		}
+	}
+
+	if targetAlgo == nil {
+		c.JSON(http.StatusNotFound, ErrorResponse{Error: "Algorithm not found"})
+		return
+	}
+
+	response := AlgorithmicTraderResponse{
+		ID:                targetAlgo.ID,
+		Name:              targetAlgo.Name,
+		Strategy:          targetAlgo.Strategy,
+		Active:            targetAlgo.Active,
+		OrdersPlaced:      targetAlgo.OrdersPlaced,
+		ProfitLoss:        targetAlgo.ProfitLoss,
+		LastAction:        targetAlgo.LastAction,
+		MaxOrderValue:     targetAlgo.Config.MaxOrderValue,
+		MinOrderValue:     targetAlgo.Config.MinOrderValue,
+		RiskThreshold:     targetAlgo.Config.RiskThreshold,
+		CooldownSeconds:   targetAlgo.Config.CooldownSeconds,
+		MomentumThreshold: targetAlgo.Config.MomentumThreshold,
+		ContrarianSpread:  targetAlgo.Config.ContrarianSpread,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// Request/Response types
+type OrderRequest struct {
+	TraderID string           `json:"traderId" binding:"required"`
+	StockID  string           `json:"stockId" binding:"required"`
+	Type     models.OrderType `json:"type" binding:"required"`
+	Price    float64          `json:"price" binding:"required,gt=0"`
+	Quantity int              `json:"quantity" binding:"required,gt=0"`
+}
+
+type StockDetailsResponse struct {
+	*models.Stock
+	OpenOrders   []models.Order       `json:"openOrders"`
+	Transactions []models.Transaction `json:"lastTransactions"`
+}
+
+type TraderInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type TraderDetailsResponse struct {
+	*models.Trader
+	OpenOrders []models.Order `json:"openOrders"`
+}
+
+type TraderTransactionsResponse struct {
+	Transactions []models.Transaction `json:"transactions"`
+	ProfitLoss   float64              `json:"profitLoss"`
+}
+
+type StockHistoryResponse struct {
+	StockID string              `json:"stockId"`
+	Days    int                 `json:"days"`
+	History []models.PriceQuote `json:"history"`
+}
+
+type TraderPerformanceResponse struct {
+	TraderID    string                   `json:"traderId"`
+	Days        int                      `json:"days"`
+	Performance []models.PerformanceData `json:"performance"`
+	Portfolio   models.PortfolioData     `json:"portfolio"`
+	Activity    []models.ActivityLog     `json:"activity"`
+}
+
+// AlgorithmicTraderResponse represents an algorithmic trader response
+type AlgorithmicTraderResponse struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Strategy     string    `json:"strategy"`
+	Active       bool      `json:"active"`
+	OrdersPlaced int       `json:"ordersPlaced"`
+	ProfitLoss   float64   `json:"profitLoss"`
+	LastAction   time.Time `json:"lastAction"`
+	// Configuration parameters
+	MaxOrderValue     float64 `json:"maxOrderValue"`     // Maximum value per order
+	MinOrderValue     float64 `json:"minOrderValue"`     // Minimum value per order
+	RiskThreshold     float64 `json:"riskThreshold"`     // Risk percentage of portfolio
+	CooldownSeconds   int     `json:"cooldownSeconds"`   // Cooldown between orders
+	MomentumThreshold float64 `json:"momentumThreshold"` // Momentum strategy threshold
+	ContrarianSpread  float64 `json:"contrarianSpread"`  // Contrarian strategy spread
+}
+
+// ErrorResponse represents an error response
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+// SuccessResponse represents a success response
+type SuccessResponse struct {
+	Message string `json:"message"`
+}
+
+// Replace gin.H usage with proper structs for Swagger

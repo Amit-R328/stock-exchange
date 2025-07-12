@@ -1,0 +1,24 @@
+<div class="login-container">
+  <mat-card class="login-card">
+    <mat-card-header>
+      <mat-card-title>Stock Exchange Login</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <form (ngSubmit)="login()">
+        <mat-form-field appearance="fill">
+          <mat-label>Trader ID</mat-label>
+          <input matInput [(ngModel)]="traderId" name="traderId" required />
+          <mat-hint>Enter your trader ID to continue</mat-hint>
+        </mat-form-field>
+
+        @if (error) {
+        <mat-error>{{ error }}</mat-error>
+        }
+
+        <button mat-raised-button color="primary" type="submit">
+          Login
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

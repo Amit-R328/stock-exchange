@@ -1,0 +1,458 @@
+@use '../../../styles/variables' as *;
+
+// Personal Dashboard Styles
+.personal-container {
+  @include spacing(padding, 4);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  padding: 60px;
+}
+
+.dashboard-header {
+  background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .trader-info {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    .trader-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      mat-icon {
+        font-size: 32px;
+        width: 32px;
+        height: 32px;
+      }
+    }
+
+    .trader-details {
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 4px 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+      }
+    }
+  }
+
+  .account-summary {
+    display: flex;
+    gap: 40px;
+
+    .summary-item {
+      text-align: center;
+
+      .summary-value {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+
+        &.profit {
+          color: #81c784;
+        }
+
+        &.loss {
+          color: #e57373;
+        }
+      }
+
+      .summary-label {
+        font-size: 12px;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+}
+
+.live-indicator {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  opacity: 0.7;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.7;
+  }
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+// Card Styles
+.holdings-card,
+.orders-card,
+.transactions-card {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+
+  mat-card-header {
+    background: linear-gradient(135deg, #37474f 0%, #546e7a 100%);
+    color: white;
+    padding: 20px;
+    margin: -16px -16px 20px -16px;
+  }
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+    font-size: 18px;
+    margin: 0;
+  }
+
+  mat-card-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 4px;
+  }
+}
+
+.holdings-card,
+.orders-card {
+  grid-column: span 1;
+}
+
+.transactions-card {
+  grid-column: span 2;
+}
+
+// List Styles
+.holdings-list,
+.orders-list,
+.transactions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// Item Styles
+.holding-item,
+.order-item,
+.transaction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #2196f3;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #e3f2fd;
+    transform: translateX(4px);
+  }
+}
+
+// Holding specific styles
+.holding-item {
+  .holding-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .stock-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+
+      mat-icon {
+        color: white;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
+
+    .stock-details {
+      flex: 1;
+
+      .stock-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+      }
+
+      .stock-quantity {
+        font-size: 14px;
+        color: #666;
+      }
+    }
+  }
+
+  .holding-value {
+    text-align: right;
+
+    .current-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .value-change {
+      font-size: 12px;
+      margin-top: 2px;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-weight: 500;
+
+      &.positive {
+        background: #e8f5e8;
+        color: #2e7d32;
+      }
+
+      &.negative {
+        background: #ffebee;
+        color: #d32f2f;
+      }
+    }
+  }
+}
+
+// Order specific styles
+.order-item {
+  .order-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .order-details {
+      margin-left: 12px;
+
+      .order-stock {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .order-specs {
+        font-size: 14px;
+        color: #666;
+        margin-top: 2px;
+      }
+    }
+  }
+
+  .cancel-btn {
+    color: #d32f2f;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: #ffebee;
+      transform: scale(1.1);
+    }
+  }
+}
+
+// Transaction specific styles
+.transaction-item {
+  .transaction-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .transaction-details {
+      margin-left: 12px;
+
+      .transaction-stock {
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .transaction-specs {
+        font-size: 14px;
+        color: #666;
+        margin-top: 2px;
+      }
+    }
+  }
+
+  .transaction-meta {
+    text-align: right;
+
+    .transaction-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .transaction-time {
+      font-size: 12px;
+      color: #999;
+      margin-top: 2px;
+    }
+  }
+}
+
+// Shared chip styles
+.order-type-chip,
+.transaction-type-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+
+  &.buy-chip {
+    background: #e8f5e8;
+    color: #2e7d32;
+  }
+
+  &.sell-chip {
+    background: #ffebee;
+    color: #d32f2f;
+  }
+}
+
+// Empty state styles
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  p {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  span {
+    font-size: 14px;
+    opacity: 0.7;
+  }
+}
+
+// Media Queries
+@include respond-to(xl) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+
+    .holdings-card,
+    .orders-card,
+    .transactions-card {
+      grid-column: span 1;
+    }
+  }
+}
+
+@include respond-to(md) {
+  .personal-container {
+    @include spacing(padding, 2);
+  }
+
+  .dashboard-header {
+    .header-content {
+      flex-direction: column;
+      gap: 20px;
+      text-align: center;
+    }
+
+    .trader-info {
+      flex-direction: column;
+      gap: 10px;
+
+      .trader-avatar {
+        width: 48px;
+        height: 48px;
+      }
+
+      .trader-details h1 {
+        font-size: 24px;
+      }
+    }
+
+    .account-summary {
+      gap: 20px;
+
+      .summary-item .summary-value {
+        font-size: 20px;
+      }
+    }
+  }
+
+  .holding-item,
+  .order-item,
+  .transaction-item {
+    padding: 12px;
+
+    .holding-info,
+    .order-info,
+    .transaction-info {
+      gap: 12px;
+    }
+  }
+
+  .stock-icon {
+    width: 32px;
+    height: 32px;
+  }
+}

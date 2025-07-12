@@ -1,0 +1,232 @@
+@use '../../../styles/variables' as *;
+
+// Traders Component Styles
+.traders-container {
+  @include spacing(padding, 4);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.traders-card {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+
+  mat-card-header {
+    background: linear-gradient(135deg, #3f51b5 0%, #5a67d8 100%);
+    color: white;
+    padding: 24px;
+    margin: -16px -16px 24px -16px;
+  }
+
+  mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: white;
+    font-size: 24px;
+    margin: 0;
+
+    mat-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  mat-card-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    margin: 8px 0 0 40px;
+  }
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  padding: 60px;
+}
+
+.error-message {
+  color: #f44336;
+  text-align: center;
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.traders-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+
+  .trader-card {
+    display: flex;
+    align-items: center;
+    padding: 20px 24px;
+    background: white;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #e0e0e0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: #f8f9ff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      transform: translateX(4px);
+
+      .trader-actions {
+        opacity: 1;
+      }
+    }
+
+    &.even-row {
+      background: #fafafa;
+
+      &:hover {
+        background: #f8f9ff;
+      }
+    }
+
+    .trader-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 20px;
+      flex-shrink: 0;
+
+      mat-icon {
+        color: white;
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    .trader-info {
+      flex: 1;
+
+      .trader-name {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 500;
+        color: #333;
+      }
+
+      .trader-id {
+        margin: 4px 0 0;
+        font-size: 14px;
+        color: #666;
+      }
+    }
+
+    .trader-actions {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+  }
+}
+
+// Media Queries
+@include respond-to(sm) {
+  .traders-container {
+    @include spacing(padding, 2);
+  }
+
+  .traders-grid .trader-card {
+    @include spacing(padding, 3);
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+
+    .trader-avatar {
+      width: 56px;
+      height: 56px;
+    }
+
+    .trader-info {
+      width: 100%;
+      text-align: center;
+
+      .trader-name {
+        font-size: 18px;
+        margin-bottom: 4px;
+      }
+
+      .trader-id {
+        font-size: 14px;
+      }
+    }
+
+    .trader-actions {
+      opacity: 1;
+      width: 100%;
+      justify-content: center;
+
+      .view-details-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+// Additional mobile improvements for very small screens
+@include respond-to(xs) {
+  .traders-container {
+    @include spacing(padding, 1);
+  }
+
+  .traders-card {
+    margin: 0 -8px;
+    border-radius: 0;
+
+    mat-card-header {
+      @include spacing(padding, 3);
+      margin: 0px 0px 16px 3px;
+    }
+
+    mat-card-title {
+      font-size: 20px;
+
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    mat-card-subtitle {
+      margin: 6px 0 0 36px;
+      font-size: 14px;
+    }
+  }
+
+  .traders-grid .trader-card {
+    @include spacing(padding, 2);
+
+    .trader-avatar {
+      width: 48px;
+      height: 48px;
+    }
+
+    .trader-info .trader-name {
+      font-size: 16px;
+    }
+
+    .trader-actions .view-details-btn {
+      @include spacing(padding, 2);
+      font-size: 14px;
+    }
+  }
+}

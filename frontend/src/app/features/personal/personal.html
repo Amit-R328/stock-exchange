@@ -1,0 +1,174 @@
+<div class="personal-container">
+  @if (loading) {
+  <div class="loading-container">
+    <mat-spinner></mat-spinner>
+  </div>
+  } @else if (traderDetails) {
+  <div class="dashboard-header">
+    <div class="header-content">
+      <div class="trader-info">
+        <div class="trader-avatar">
+          <mat-icon>person</mat-icon>
+        </div>
+        <div class="trader-details">
+          <h1>Welcome back, {{ traderDetails.name }}</h1>
+          <p>Personal Dashboard</p>
+        </div>
+      </div>
+      <div class="account-summary">
+        <div class="summary-item">
+          <div class="summary-value">${{ traderDetails.money | number: '1.2-2' }}</div>
+          <div class="summary-label">Available Cash</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value" [class.profit]="profitLoss > 0" [class.loss]="profitLoss < 0">
+            ${{ profitLoss | number: '1.2-2' }}
+            <mat-icon class="live-indicator" matTooltip="Live P&L - updates in real-time">
+              {{ profitLoss >= 0 ? 'trending_up' : 'trending_down' }}
+            </mat-icon>
+          </div>
+          <div class="summary-label">Total P&L</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-value">{{ holdings.length }}</div>
+          <div class="summary-label">Holdings</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trader Analytics Charts -->
+  <app-trader-chart [traderData]="traderDetails" [traderId]="traderId || ''" [height]="350">
+  </app-trader-chart>
+
+  <div class="dashboard-grid">
+    <mat-card class="holdings-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>inventory</mat-icon>
+          Portfolio Overview
+        </mat-card-title>
+        <mat-card-subtitle>{{ holdings.length }} active positions</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (holdings.length > 0) {
+        <div class="holdings-list">
+          @for (holding of holdings; track holding.stockId) {
+          <div class="holding-item">
+            <div class="holding-info">
+              <div class="stock-icon">
+                <mat-icon>business</mat-icon>
+              </div>
+              <div class="stock-details">
+                <div class="stock-name">{{ holding.stockName }}</div>
+                <div class="stock-quantity">{{ holding.quantity }} shares</div>
+              </div>
+            </div>
+            <div class="holding-value">
+              <div class="current-value">
+                ${{ holding.currentValue | number: '1.2-2' }}
+                <mat-icon class="live-indicator" matTooltip="Live value - updates in real-time">
+                  {{ getHoldingProfitLoss(holding) >= 0 ? 'trending_up' : 'trending_down' }}
+                </mat-icon>
+              </div>
+              <div class="value-change" [class.positive]="getHoldingProfitLoss(holding) > 0"
+                [class.negative]="getHoldingProfitLoss(holding) < 0">
+                {{ getHoldingProfitLoss(holding) > 0 ? '+' : '' }}{{ getHoldingProfitLoss(holding) | number: '1.2-2' }}
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+        } @else {
+        <div class="empty-state">
+          <mat-icon>inventory</mat-icon>
+          <p>No holdings yet</p>
+          <span>Start trading to build your portfolio</span>
+        </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="orders-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>pending_actions</mat-icon>
+          Open Orders
+        </mat-card-title>
+        <mat-card-subtitle>{{ getOpenOrders().length }} pending orders</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (getOpenOrders().length > 0) {
+        <div class="orders-list">
+          @for (order of getOpenOrders(); track order.id) {
+          <div class="order-item">
+            <div class="order-info">
+              <mat-chip [class]="order.type === 'buy' ? 'buy-chip' : 'sell-chip'" class="order-type-chip">
+                <mat-icon>{{ order.type === 'buy' ? 'trending_up' : 'trending_down' }}</mat-icon>
+                {{ order.type | uppercase }}
+              </mat-chip>
+              <div class="order-details">
+                <div class="order-stock">{{ getStockName(order.stockId) }}</div>
+                <div class="order-specs">${{ order.price | number: '1.2-2' }} × {{ order.quantity }}</div>
+              </div>
+            </div>
+            <button mat-icon-button (click)="cancelOrder(order.id)" class="cancel-btn" matTooltip="Cancel order">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          </div>
+          }
+        </div>
+        } @else {
+        <div class="empty-state">
+          <mat-icon>pending_actions</mat-icon>
+          <p>No open orders</p>
+          <span>All orders have been executed</span>
+        </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="transactions-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>history</mat-icon>
+          Recent Transactions
+        </mat-card-title>
+        <mat-card-subtitle>{{ transactions?.length }} transactions</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (transactions && (transactions.length > 0)) {
+        <div class="transactions-list">
+          @for (tx of transactions; track tx.id) {
+          <div class="transaction-item">
+            <div class="transaction-info">
+              <div class="transaction-type">
+                <mat-chip [class]="tx.buyerId === traderId ? 'buy-chip' : 'sell-chip'" class="transaction-type-chip">
+                  <mat-icon>{{ tx.buyerId === traderId ? 'trending_up' : 'trending_down' }}</mat-icon>
+                  {{ tx.buyerId === traderId ? 'BOUGHT' : 'SOLD' }}
+                </mat-chip>
+              </div>
+              <div class="transaction-details">
+                <div class="transaction-stock">{{ getStockName(tx.stockId) }}</div>
+                <div class="transaction-specs">${{ tx.price | number: '1.2-2' }} × {{ tx.quantity }}</div>
+              </div>
+            </div>
+            <div class="transaction-meta">
+              <div class="transaction-value">${{ (tx.price * tx.quantity) | number: '1.2-2' }}</div>
+              <div class="transaction-time">{{ tx.executedAt | date: 'short' }}</div>
+            </div>
+          </div>
+          }
+        </div>
+        } @else {
+        <div class="empty-state">
+          <mat-icon>history</mat-icon>
+          <p>No transactions yet</p>
+          <span>Your trading history will appear here</span>
+        </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+  }
+</div>

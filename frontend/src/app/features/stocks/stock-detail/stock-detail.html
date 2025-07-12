@@ -1,0 +1,226 @@
+<div class="stock-detail-container">
+  <div class="header-section">
+    <button mat-button routerLink="/stocks" class="back-button">
+      <mat-icon>arrow_back</mat-icon> Back to Stocks
+    </button>
+  </div>
+
+  @if (loading) {
+  <div class="loading-container">
+    <mat-spinner></mat-spinner>
+  </div>
+  } @else if (stock) {
+  <div class="stock-header">
+    <div class="stock-title">
+      <div class="stock-icon">
+        <mat-icon>trending_up</mat-icon>
+      </div>
+      <div class="stock-info">
+        <h1>{{ stock.name }}</h1>
+        <p class="stock-id">Stock ID: {{ stock.id }}</p>
+      </div>
+    </div>
+    <div class="stock-price">
+      <div class="current-price">${{ stock.currentPrice | number: '1.2-2' }}</div>
+      <div class="price-change positive">
+        <mat-icon>trending_up</mat-icon>
+        <span>+2.34%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Price Chart -->
+  <app-stock-chart [stockData]="[]" [stockName]="stock.name" [stockId]="stock.id" [height]="350">
+  </app-stock-chart>
+
+  <div class="content-grid">
+    <div class="left-column">
+      <mat-card class="stock-info-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>info</mat-icon>
+            Stock Information
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Current Price</div>
+              <div class="info-value price-value">${{ stock.currentPrice | number: '1.2-2' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Available Shares</div>
+              <div class="info-value">{{ stock.amount | number }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Market Cap</div>
+              <div class="info-value">${{ (stock.currentPrice * stock.amount) | number: '1.0-0' }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Active Orders</div>
+              <div class="info-value">{{ stock.openOrders.length || 0 }}</div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="order-form-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>add_shopping_cart</mat-icon>
+            Place Order
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <form (ngSubmit)="placeOrder()" class="order-form">
+            <div class="order-type-section">
+              <mat-radio-group [(ngModel)]="orderForm.type" (ngModelChange)="clearError()" name="type"
+                class="order-type-group">
+                <mat-radio-button value="buy" class="buy-radio">
+                  <span class="radio-label">
+                    <mat-icon>trending_up</mat-icon>
+                    Buy
+                  </span>
+                </mat-radio-button>
+                <mat-radio-button value="sell" class="sell-radio">
+                  <span class="radio-label">
+                    <mat-icon>trending_down</mat-icon>
+                    Sell
+                  </span>
+                </mat-radio-button>
+              </mat-radio-group>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline" class="price-field">
+                <mat-label>Price per Share</mat-label>
+                <input matInput type="number" [(ngModel)]="orderForm.price" (ngModelChange)="onPriceChange()"
+                  name="price" required step="0.01" min="0" />
+                <mat-icon matPrefix>attach_money</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="quantity-field">
+                <mat-label>Quantity</mat-label>
+                <input matInput type="number" [(ngModel)]="orderForm.quantity" (ngModelChange)="clearError()"
+                  name="quantity" required min="1" />
+                <mat-icon matPrefix>inventory</mat-icon>
+              </mat-form-field>
+            </div>
+
+            @if (trader) {
+            <div class="trader-info">
+              <div class="trader-stat">
+                <mat-icon>account_balance_wallet</mat-icon>
+                <div>
+                  <div class="stat-label">Available Cash</div>
+                  <div class="stat-value">${{ trader.money | number: '1.2-2' }}</div>
+                </div>
+              </div>
+              <div class="trader-stat">
+                <mat-icon>inventory_2</mat-icon>
+                <div>
+                  <div class="stat-label">Current Holdings</div>
+                  <div class="stat-value">{{ trader.holdings[stock.id] || 0 }} shares</div>
+                </div>
+              </div>
+            </div>
+            }
+
+            <div class="order-summary">
+              <div class="summary-item">
+                <span>Total Value:</span>
+                <span class="total-value">${{ (orderForm.price * orderForm.quantity) | number: '1.2-2' }}</span>
+              </div>
+            </div>
+
+            @if (error) {
+            <div class="error-message">
+              <mat-icon>error</mat-icon>
+              {{ error }}
+            </div>
+            }
+
+            <button mat-raised-button color="primary" type="submit" class="place-order-btn"
+              [class.buy-btn]="orderForm.type === 'buy'" [class.sell-btn]="orderForm.type === 'sell'">
+              <mat-icon>{{ orderForm.type === 'buy' ? 'add_shopping_cart' : 'remove_shopping_cart' }}</mat-icon>
+              Place {{ orderForm.type | titlecase }} Order
+            </button>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="right-column">
+      <mat-card class="orders-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>list_alt</mat-icon>
+            Open Orders
+          </mat-card-title>
+          <mat-card-subtitle>{{ stock.openOrders.length || 0 }} active orders</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (stock.openOrders && stock.openOrders.length > 0) {
+          <div class="order-list">
+            @for (order of stock.openOrders; track order.id) {
+            <div class="order-item">
+              <div class="order-info">
+                <mat-chip [class]="order.type === 'buy' ? 'buy-chip' : 'sell-chip'" class="order-type-chip">
+                  <mat-icon>{{ order.type === 'buy' ? 'trending_up' : 'trending_down' }}</mat-icon>
+                  {{ order.type | uppercase }}
+                </mat-chip>
+                <div class="order-details">
+                  <div class="order-price">${{ order.price | number: '1.2-2' }}</div>
+                  <div class="order-quantity">{{ order.quantity }} shares</div>
+                </div>
+              </div>
+              @if (canCancelOrder(order)) {
+              <button mat-icon-button (click)="cancelOrder(order.id)" class="cancel-btn" matTooltip="Cancel order">
+                <mat-icon>cancel</mat-icon>
+              </button>
+              }
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="empty-state">
+            <mat-icon>inventory</mat-icon>
+            <p>No open orders</p>
+          </div>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="transactions-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>history</mat-icon>
+            Recent Transactions
+          </mat-card-title>
+          <mat-card-subtitle>Last 10 transactions</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          @if (stock.lastTransactions && stock.lastTransactions.length > 0) {
+          <div class="transaction-list">
+            @for (tx of stock.lastTransactions; track tx.id) {
+            <div class="transaction-item">
+              <div class="transaction-info">
+                <div class="transaction-price">${{ tx.price | number: '1.2-2' }}</div>
+                <div class="transaction-quantity">{{ tx.quantity }} shares</div>
+              </div>
+              <div class="transaction-time">{{ tx.executedAt | date: 'short' }}</div>
+            </div>
+            }
+          </div>
+          } @else {
+          <div class="empty-state">
+            <mat-icon>timeline</mat-icon>
+            <p>No recent transactions</p>
+          </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+  }
+</div>

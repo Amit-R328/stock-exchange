@@ -1,0 +1,132 @@
+@use 'sass:map';
+@use '../../../../styles/variables' as *;
+
+.trader-chart-container {
+  @include card();
+  overflow: hidden;
+}
+
+.chart-header {
+  @include flex-between;
+  @include spacing(padding-bottom, 4);
+  border-bottom: 1px solid $gray-200;
+  @include spacing(margin-bottom, 4);
+}
+
+.chart-controls {
+  display: flex;
+  @include gap(2);
+  flex-wrap: wrap;
+}
+
+.chart-type-btn {
+  @include button-reset;
+  @include flex-center;
+  @include gap(2);
+  @include spacing(padding, 2);
+  border-radius: map.get($border-radius, sm);
+  border: 1px solid $gray-300;
+  background: $white;
+  color: $text-muted;
+  transition: all map.get($transition-duration, fast) $transition-timing;
+  @include font-size(sm);
+  min-width: 100px;
+
+  &:hover {
+    background: $gray-100;
+    color: $text-primary;
+  }
+
+  &.active {
+    background: $info;
+    color: $text-inverse;
+    border-color: $info;
+  }
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+
+  canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+.chart-footer {
+  @include spacing(margin-top, 4);
+  @include spacing(padding-top, 4);
+  border-top: 1px solid $gray-200;
+}
+
+.chart-stats {
+  @include flex-center;
+  @include gap(6);
+}
+
+.stat-item {
+  @include flex-center;
+  @include gap(2);
+  @include font-size(sm);
+}
+
+.stat-label {
+  color: $text-muted;
+}
+
+.stat-value {
+  font-weight: map.get($font-weights, semibold);
+  color: $text-primary;
+
+  &.positive {
+    @include price-color('up');
+  }
+
+  &.negative {
+    @include price-color('down');
+  }
+}
+
+// Responsive adjustments
+@include respond-to(md) {
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    @include gap(3);
+  }
+
+  .chart-controls {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .chart-type-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 80px;
+  }
+
+  .chart-stats {
+    flex-direction: column;
+    align-items: flex-start;
+    @include gap(2);
+  }
+}
+
+@include respond-to(xs) {
+  .chart-controls {
+    flex-direction: column;
+  }
+
+  .chart-type-btn {
+    width: 100%;
+  }
+}
