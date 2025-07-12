@@ -226,11 +226,15 @@
   padding: 8px 16px;
   font-size: 14px;
   text-transform: none;
+  background-color: $primary;
+  color: $text-inverse;
+  border: none;
   transition: all 0.3s ease;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-color: color.adjust($primary, $lightness: -5%);
   }
 
   mat-icon {

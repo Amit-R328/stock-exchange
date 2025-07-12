@@ -1,38 +1,32 @@
 <div class="stock-chart-container">
   <div class="chart-header">
     <div class="chart-controls">
-      <button class="chart-type-btn" [class.active]="chartType === 'line'" (click)="updateChartType('line')">
+      <button 
+        class="chart-type-btn"
+        [class.active]="chartType === 'line'"
+        (click)="updateChartType('line')">
         <mat-icon>trending_up</mat-icon>
         Line
       </button>
-      <button class="chart-type-btn" [class.active]="chartType === 'volume'" (click)="updateChartType('volume')">
+      <button 
+        class="chart-type-btn"
+        [class.active]="chartType === 'volume'"
+        (click)="updateChartType('volume')">
         <mat-icon>bar_chart</mat-icon>
         Volume
       </button>
-      <button class="chart-type-btn" [class.active]="chartType === 'candlestick'" (click)="updateChartType('candlestick')">
-        <mat-icon>candlestick_chart</mat-icon>
-        Candlestick
-      </button>
     </div>
   </div>
-
+  
   <div class="chart-wrapper" [style.height.px]="height">
     <canvas #chartCanvas></canvas>
   </div>
-
+  
   <div class="chart-footer">
     <div class="chart-legend">
-      <div class="legend-item" *ngIf="chartType === 'line'">
+      <div class="legend-item">
         <div class="legend-color" style="background-color: #1976d2;"></div>
-        <span>{{ stockName || 'Stock' }} Price</span>
-      </div>
-      <div class="legend-item" *ngIf="chartType === 'volume'">
-        <div class="legend-color" style="background-color: #4caf50;"></div>
-        <span>{{ stockName || 'Stock' }} Trading Volume</span>
-      </div>
-      <div class="legend-item" *ngIf="chartType === 'candlestick'">
-        <div class="legend-color" style="background-color: #ff9800;"></div>
-        <span>{{ stockName || 'Stock' }} Price Range</span>
+        <span>{{ stockName || 'Stock Price' }}</span>
       </div>
     </div>
   </div>

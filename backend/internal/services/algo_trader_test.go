@@ -1,9 +1,10 @@
 package services
 
 import (
-	"stock-exchange/internal/models"
 	"testing"
 	"time"
+
+	"stock-exchange/internal/models"
 )
 
 func TestNewAlgorithmManager(t *testing.T) {
@@ -74,20 +75,32 @@ func TestAlgorithmManager_StartAlgorithm(t *testing.T) {
 	exchange := createTestExchange()
 	am := NewAlgorithmManager(exchange)
 
-	// Initially bots should be inactive
+	// Initially bots should be active for demo purposes
 	for _, trader := range am.traders {
-		if trader.Active {
-			t.Errorf("Expected trader %s to be inactive initially", trader.Name)
+		if !trader.Active {
+			t.Errorf("Expected trader %s to be active initially for demo", trader.Name)
 		}
 	}
 
-	// Activate a bot
+	// Try to start an already active bot - should get error
 	if len(am.traders) > 0 {
 		botID := am.traders[0].ID
 		err := am.StartAlgorithm(botID)
 
+		if err == nil {
+			t.Error("Expected error when starting already active algorithm")
+		}
+
+		// Stop the bot first, then start it
+		err = am.StopAlgorithm(botID)
 		if err != nil {
-			t.Errorf("Expected no error starting algorithm, got: %v", err)
+			t.Errorf("Expected no error stopping algorithm, got: %v", err)
+		}
+
+		// Now start it again
+		err = am.StartAlgorithm(botID)
+		if err != nil {
+			t.Errorf("Expected no error starting stopped algorithm, got: %v", err)
 		}
 
 		// Check that the bot is now active
@@ -109,14 +122,12 @@ func TestAlgorithmManager_StopAlgorithm(t *testing.T) {
 	exchange := createTestExchange()
 	am := NewAlgorithmManager(exchange)
 
-	// Activate a bot first
+	// Bots start active, so we can stop them directly
 	if len(am.traders) > 0 {
 		botID := am.traders[0].ID
-		am.StartAlgorithm(botID)
 
-		// Then deactivate it
+		// Stop the active bot
 		err := am.StopAlgorithm(botID)
-
 		if err != nil {
 			t.Errorf("Expected no error stopping algorithm, got: %v", err)
 		}
@@ -127,6 +138,12 @@ func TestAlgorithmManager_StopAlgorithm(t *testing.T) {
 				t.Error("Expected bot to be deactivated")
 			}
 		}
+
+		// Try to stop an already stopped bot - should get error
+		err = am.StopAlgorithm(botID)
+		if err == nil {
+			t.Error("Expected error when stopping already inactive algorithm")
+		}
 	}
 }
 
@@ -136,9 +153,14 @@ func TestAlgorithmManager_ToggleTrader(t *testing.T) {
 
 	if len(am.traders) > 0 {
 		trader := am.traders[0]
-		originalStatus := trader.Active
+		// Bots start active by default
+		originalStatus := true
 
-		// Toggle the trader
+		if !trader.Active {
+			t.Error("Expected trader to start active")
+		}
+
+		// Toggle the trader (should make it inactive)
 		err := am.ToggleTrader(trader.ID)
 		if err != nil {
 			t.Errorf("Expected no error toggling trader, got: %v", err)
@@ -149,7 +171,7 @@ func TestAlgorithmManager_ToggleTrader(t *testing.T) {
 			t.Error("Expected trader status to be toggled")
 		}
 
-		// Toggle back
+		// Toggle back (should make it active again)
 		err = am.ToggleTrader(trader.ID)
 		if err != nil {
 			t.Errorf("Expected no error toggling trader back, got: %v", err)

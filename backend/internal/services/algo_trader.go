@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"stock-exchange/internal/models"
 	"time"
+
+	"stock-exchange/internal/models"
 )
 
 // AlgoTrader represents an algorithmic trading bot
@@ -71,7 +72,7 @@ func NewAlgorithmManager(exchange *Exchange) *AlgorithmManager {
 		ID:       "contrarian-bot-1",
 		Name:     "Contrarian Trader 📉",
 		Strategy: "contrarian",
-		Active:   true,
+		Active:   true, // Auto-start for demo
 		Exchange: exchange,
 		Config: AlgoConfig{
 			MaxOrderValue:     3000,
