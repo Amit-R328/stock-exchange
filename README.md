@@ -129,7 +129,7 @@ stock-exchange-try/
 - `GET /api/v1/algorithms` - List algorithmic trading bots
 - `POST /api/v1/algorithms/:id/start` - Start a trading bot
 - `POST /api/v1/algorithms/:id/stop` - Stop a trading bot
-- `PUT /api/v1/algorithms/:id/config` - Update bot configuration
+- `GET /api/v1/algorithms/:id/status` - Get algorithm status
 - `WebSocket: ws://localhost:8080/ws` - Real-time updates
 
 ### Frontend Routes
@@ -218,20 +218,21 @@ Both bots start automatically when the server launches and can be configured via
 curl http://localhost:8080/api/v1/algorithms
 ```
 
-#### Update Bot Configuration
+#### Get Specific Bot Status
 ```bash
-curl -X PUT http://localhost:8080/api/v1/algorithms/momentum_hunter/config \
-  -H "Content-Type: application/json" \
-  -d '{"momentum_threshold": 3.0, "sell_threshold": 1.5}'
+curl http://localhost:8080/api/v1/algorithms/momentum-bot-1/status
 ```
 
 #### Start/Stop Bots
 ```bash
 # Stop a bot
-curl -X POST http://localhost:8080/api/v1/algorithms/momentum_hunter/stop
+curl -X POST http://localhost:8080/api/v1/algorithms/momentum-bot-1/stop
 
 # Start a bot  
-curl -X POST http://localhost:8080/api/v1/algorithms/momentum_hunter/start
+curl -X POST http://localhost:8080/api/v1/algorithms/momentum-bot-1/start
+```
+
+**Note**: Bot configuration is currently set in the source code. To modify trading parameters, you would need to update the values in `backend/internal/services/algo_trader.go` and restart the server.
 ```
 
 ### Performance Tips
