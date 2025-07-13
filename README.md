@@ -28,7 +28,7 @@ A complete stock exchange system built with Go (Backend) and Angular (Frontend) 
 
 1. **Open terminal and navigate to the Backend directory:**
    ```bash
-   cd stock-exchange-backend
+   cd backend
    ```
 
 2. **Install dependencies:**
@@ -51,7 +51,7 @@ A complete stock exchange system built with Go (Backend) and Angular (Frontend) 
 
 1. **Open another terminal and navigate to the Frontend directory:**
    ```bash
-   cd stock-exchange-frontend/stock-exchange-frontend
+   cd frontend
    ```
 
 2. **Install dependencies:**
@@ -71,8 +71,8 @@ A complete stock exchange system built with Go (Backend) and Angular (Frontend) 
 ## Project Structure
 
 ```
-stock-exchange-try/
-├── stock-exchange-backend/          # Go Server
+stock-exchange/
+├── backend/                        # Go Server
 │   ├── cmd/server/main.go          # Server entry point
 │   ├── internal/
 │   │   ├── handlers/               # API controllers
@@ -82,8 +82,7 @@ stock-exchange-try/
 │   ├── config/config.json          # Initial configuration
 │   └── docs/                       # Swagger documentation
 │
-└── stock-exchange-frontend/        # Angular Application
-    └── stock-exchange-frontend/
+└── frontend/                       # Angular Application
         ├── src/app/
         │   ├── core/               # Services and guards
         │   ├── features/           # Application pages
@@ -178,38 +177,44 @@ Both bots start automatically when the server launches and can be configured via
 #### Momentum Hunter 🚀
 ```json
 {
-  "id": "momentum_hunter",
+  "id": "momentum-bot-1",
   "name": "Momentum Hunter 🚀",
   "strategy": "momentum",
   "active": true,
   "config": {
-    "momentum_threshold": 2.5,    // Minimum % price increase to trigger buy (actual: 0.025 = 2.5%)
-    "sell_threshold": 1.0,        // % profit to trigger sell
-    "max_position_size": 0.1,     // Max 10% of available money per trade
-    "analysis_window": 10         // Number of price points to analyze
-  }
+    "MaxOrderValue": 5000,
+    "MinOrderValue": 100,
+    "RiskThreshold": 0.1,
+    "CooldownSeconds": 30,
+    "MomentumThreshold": 0.025,
+    "ContrarianSpread": 0.005
+  },
+  "InitialMoney": 50000
 }
 ```
 
-**Strategy**: Buys stocks showing upward momentum (price increasing by 2.5% or more), sells when profit reaches 1%.
+**Strategy**: Buys stocks showing upward momentum (price increasing by 2.5% or more), sells when profit target is reached.
 
 #### Contrarian Trader 📉
 ```json
 {
-  "id": "contrarian_trader", 
+  "id": "contrarian-bot-1",
   "name": "Contrarian Trader 📉",
   "strategy": "contrarian",
   "active": true,
   "config": {
-    "buy_spread_threshold": 0.7,  // Min % spread between high/low to buy (actual: 0.007 = 0.7%)
-    "sell_threshold": 2.0,        // % profit to trigger sell
-    "max_position_size": 0.15,    // Max 15% of available money per trade
-    "analysis_window": 15         // Number of price points to analyze
-  }
+    "MaxOrderValue": 3000,
+    "MinOrderValue": 200,
+    "RiskThreshold": 0.15,
+    "CooldownSeconds": 45,
+    "MomentumThreshold": 0.02,
+    "ContrarianSpread": 0.007
+  },
+  "InitialMoney": 40000
 }
 ```
 
-**Strategy**: Buys during price volatility (when spread > 0.7%), sells when profit reaches 2%.
+**Strategy**: Buys during price volatility and contrarian opportunities, sells when profit target is reached.
 
 ### Managing Bots
 
@@ -237,14 +242,14 @@ curl -X POST http://localhost:8080/api/v1/algorithms/momentum-bot-1/start
 ### Performance Tips
 
 **For Conservative Trading:**
-- Lower `momentum_threshold` to 1.5% (less aggressive)
-- Lower `sell_threshold` to 0.5% (take profits quickly)
-- Reduce `max_position_size` to 0.05 (smaller positions)
+- Lower `MomentumThreshold` to 0.015 (1.5% - less aggressive)
+- Reduce `MaxOrderValue` to 1000 (smaller positions)
+- Increase `CooldownSeconds` to 60 (slower trading)
 
 **For Aggressive Trading:**
-- Increase `momentum_threshold` to 4.0% (wait for strong signals)
-- Increase `sell_threshold` to 3.0% (let winners run)
-- Increase `max_position_size` to 0.2 (bigger bets)
+- Increase `MomentumThreshold` to 0.04 (4.0% - wait for strong signals)
+- Increase `MaxOrderValue` to 10000 (bigger bets)
+- Decrease `CooldownSeconds` to 15 (faster trading)
 
 **Pro Tip**: The bots work best when there's actual price movement. Want to see some action? Play with the thresholds! Set `momentum_threshold` to 0.5% and `max_position_size` to 0.8 to watch them go YOLO on all their money 💸, or crank up `momentum_threshold` to 10% and `max_position_size` to 0.01 to make them as careful as your grandmother investing her pension (or me)
 
