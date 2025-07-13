@@ -1,0 +1,15 @@
+# Render Deployment Configuration
+
+## Build Commands:
+# Backend:
+go build -o main ./cmd/server
+
+## Start Command:
+./main
+
+## Environment Variables:
+PORT=8080
+GIN_MODE=release
+
+## Health Check:
+/api/v1/test
